@@ -16,34 +16,49 @@ window.PORTFOLIO_DATA = {
   },
   stats: [
     { value: "2+", label: "Years of experience" },
-    { value: "5+", label: "Enterprise modules improved" },
+    { value: "50+", label: "Enterprise modules improved" },
     { value: "100+", label: "Daily users supported" },
+    { value: "100%", label: "Developing production focused web applications"},
   ],
   skills: [
     {
       title: "Frontend",
       items: [
-        "React.js",
-        "JavaScript",
-        "HTML5",
-        "CSS3",
-        "Bootstrap",
-        "Tailwind CSS",
-        "jQuery",
-        "AJAX",
+        { name: "React.js", icon: "react" },
+        { name: "JavaScript", icon: "javascript" },
+        { name: "HTML5", icon: "html5" },
+        { name: "CSS3", icon: "css3" },
+        { name: "Bootstrap", icon: "bootstrap" },
+        { name: "Tailwind CSS", icon: "tailwind" },
+        { name: "jQuery", icon: "jquery" },
+        { name: "AJAX", icon: "ajax" },
       ],
     },
     {
       title: "Backend",
-      items: ["PHP", "Node.js", "REST API", "Java"],
+      items: [
+        { name: "PHP", icon: "php" },
+        { name: "Node.js", icon: "nodejs" },
+        { name: "REST API", icon: "rest" },
+        { name: "Java", icon: "java" },
+      ],
     },
     {
       title: "Database",
-      items: ["MySQL", "SQL"],
+      items: [
+        { name: "MySQL", icon: "mysql" },
+        { name: "SQL", icon: "database" },
+      ],
     },
     {
       title: "Tools",
-      items: ["Docker", "Git", "GitHub", "SVN", "Vercel"],
+      items: [
+        { name: "Docker", icon: "docker" },
+        { name: "Git", icon: "git" },
+        { name: "GitHub", icon: "github" },
+        { name: "SVN", icon: "svn" },
+        { name: "Vercel", icon: "vercel" },
+      ],
     },
   ],
   experience: [
@@ -91,7 +106,7 @@ window.PORTFOLIO_DATA = {
     {
       title: "Orange Calculator",
       type: "Hours Calculator",
-      stack: ["JavaScript", "UI Design", "Vercel"],
+      stack: ["JavaScript", "Responsive Design", "Vercel"],
       thumbnailCode: "hc",
       thumbnailCount: 2,
       thumbnailExt: "PNG",
@@ -141,7 +156,7 @@ window.PORTFOLIO_DATA = {
     {
       title: "Portfolio Maker with Interactive Sign In",
       type: "Creative Website",
-      stack: ["JavaScript", "HTML", "CSS", "React", "Vercel"],
+      stack: ["JavaScript", "HTML", "CSS", "React", "PHP", "Vercel"],
       thumbnailCode: "pm",
       thumbnailExt: "PNG",
       blurb:

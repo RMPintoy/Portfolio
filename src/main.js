@@ -23,6 +23,126 @@ const state = {
 let sectionObserver;
 let thumbnailInterval;
 
+const TOOL_ICONS = {
+  react: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <circle cx="12" cy="12" r="1.8"></circle>
+      <ellipse cx="12" cy="12" rx="8.2" ry="3.4"></ellipse>
+      <ellipse cx="12" cy="12" rx="8.2" ry="3.4" transform="rotate(60 12 12)"></ellipse>
+      <ellipse cx="12" cy="12" rx="8.2" ry="3.4" transform="rotate(120 12 12)"></ellipse>
+    </svg>
+  `,
+  javascript: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M5 4.5h14v15H5z" fill="none"></path>
+      <path d="M10.1 8.4v6.1c0 2-1.1 3.1-3 3.1-.9 0-1.7-.2-2.3-.8l1-1.6c.3.3.7.5 1.1.5.7 0 1.1-.3 1.1-1.4V8.4h2.1Zm3.1 7.1c.6.9 1.3 1.3 2.4 1.3.9 0 1.5-.4 1.5-1.1 0-.8-.6-1.1-1.7-1.6l-.6-.2c-1.8-.8-2.9-1.7-2.9-3.6 0-1.8 1.4-3.1 3.5-3.1 1.5 0 2.6.5 3.4 1.9l-1.7 1.1c-.4-.7-.8-.9-1.7-.9-.8 0-1.2.4-1.2 1 0 .7.4 1 1.5 1.4l.6.2c2.1.9 3.2 1.8 3.2 3.8 0 2.2-1.7 3.3-4 3.3-2.2 0-3.6-1-4.3-2.3l1.8-1.1Z"></path>
+    </svg>
+  `,
+  html5: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M5.2 4.5h13.6l-1.2 13.8L12 19.8l-5.6-1.5L5.2 4.5Z"></path>
+      <path d="M12 6.4v11.4l4.5-1.2 1-10.2H12Z" fill="rgba(255,255,255,0.18)" stroke="none"></path>
+      <path d="M8.1 9h7.8M8.6 12.1h6.8M9 15.2h5.5" fill="none"></path>
+    </svg>
+  `,
+  css3: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M5.4 4.5h13.2l-1.3 13.8-5.3 1.5-5.3-1.5L5.4 4.5Z"></path>
+      <path d="M12 6.4v11.4l4.2-1.2 1-10.2H12Z" fill="rgba(255,255,255,0.18)" stroke="none"></path>
+      <path d="M8.2 8.9h7.6M8.8 12h5.8M9.4 15.1h4.4" fill="none"></path>
+    </svg>
+  `,
+  bootstrap: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M7 5.8h7.4c2 0 3.2 1.1 3.2 2.7 0 1.2-.7 2.1-1.8 2.5 1.4.3 2.3 1.4 2.3 2.9 0 2-1.5 3.3-3.8 3.3H7V5.8Zm2.3 4.6h4.4c1 0 1.6-.5 1.6-1.3s-.6-1.3-1.6-1.3H9.3v2.6Zm0 4.8H14c1.2 0 1.9-.5 1.9-1.5s-.7-1.5-1.9-1.5H9.3v3Z"></path>
+    </svg>
+  `,
+  tailwind: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M6 10.2c1-2.1 2.6-3.1 4.8-3.1 3.3 0 3.7 2.4 5.3 2.4 1 0 1.8-.5 2.5-1.4-.9 2.1-2.5 3.1-4.8 3.1-3.3 0-3.7-2.4-5.3-2.4-1 0-1.8.5-2.5 1.4Zm-2 5.7c1-2.1 2.6-3.1 4.8-3.1 3.3 0 3.7 2.4 5.3 2.4 1 0 1.8-.5 2.5-1.4-.9 2.1-2.5 3.1-4.8 3.1-3.3 0-3.7-2.4-5.3-2.4-1 0-1.8.5-2.5 1.4Z"></path>
+    </svg>
+  `,
+  jquery: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M8.1 8.4c1.2 1 2 2.2 2.3 3.6M12.2 6.1c1.7 1.2 2.8 3 3.2 5.1M6.4 12.4c1.5 1.3 3.3 2.1 5.4 2.3M10.8 15.1c1.6.8 3.3 1.1 5.1.9" fill="none"></path>
+    </svg>
+  `,
+  ajax: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M6 8.5h7.5M6 12h5.2M6 15.5h7.5M15.4 8.3l2.8 3.7-2.8 3.7M18.2 12h-5.1" fill="none"></path>
+    </svg>
+  `,
+  docker: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <rect x="4" y="9" width="3" height="3" rx="0.8"></rect>
+      <rect x="8" y="9" width="3" height="3" rx="0.8"></rect>
+      <rect x="12" y="9" width="3" height="3" rx="0.8"></rect>
+      <rect x="8" y="5" width="3" height="3" rx="0.8"></rect>
+      <rect x="12" y="5" width="3" height="3" rx="0.8"></rect>
+      <path d="M4 13.5c.6 3 3.1 4.8 7.5 4.8 4.7 0 7.9-2.1 8.9-6.2-.8.4-1.7.4-2.5 0-.5-.3-.9-.7-1.2-1.1-.7 1-1.8 1.7-3.4 1.7H4Z"></path>
+      <path d="M18.4 8.9c1.2-.4 2.2.5 2.4 1.7-1.1.2-2-.2-2.4-1.7Z"></path>
+    </svg>
+  `,
+  git: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M7 12a2.2 2.2 0 1 0 2.7-2.1V6.9a2.2 2.2 0 1 0-1.4 0v3A2.2 2.2 0 0 0 7 12Zm8.7 3.1v-3a2.2 2.2 0 1 0-1.4 0v3a2.2 2.2 0 1 0 1.4 0ZM12 13.7a1.7 1.7 0 0 1-1.2-.5l-1.9-1.9 1-1 1.9 1.9c.1.1.2.1.3.1h2.2v1.4H12Z"></path>
+    </svg>
+  `,
+  github: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M12 3.7a8.3 8.3 0 0 0-2.6 16.2c.4.1.6-.2.6-.5v-1.8c-2.4.5-3-1-3-1-.4-1-.9-1.3-.9-1.3-.8-.5.1-.5.1-.5.9.1 1.4.9 1.4.9.8 1.3 2.1.9 2.6.7.1-.6.3-.9.6-1.2-1.9-.2-3.9-.9-3.9-4.2 0-.9.3-1.7.9-2.4-.1-.2-.4-1.1.1-2.2 0 0 .7-.2 2.4.9a8 8 0 0 1 4.4 0c1.7-1.1 2.4-.9 2.4-.9.5 1.1.2 2 .1 2.2.6.7.9 1.5.9 2.4 0 3.2-2 4-3.9 4.2.3.3.6.8.6 1.6v2.4c0 .3.2.6.6.5A8.3 8.3 0 0 0 12 3.7Z"></path>
+    </svg>
+  `,
+  svn: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <circle cx="6" cy="8" r="2.2"></circle>
+      <circle cx="18" cy="8" r="2.2"></circle>
+      <circle cx="12" cy="16" r="2.2"></circle>
+      <path d="M7.8 9.3 10.5 14M16.2 9.3 13.5 14M8.7 8h6.6"></path>
+    </svg>
+  `,
+  vercel: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M12 5.3 19.5 18.7H4.5L12 5.3Z"></path>
+    </svg>
+  `,
+  php: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <ellipse cx="12" cy="12" rx="8.5" ry="5.3"></ellipse>
+      <path d="M8.1 13.9v-3.7h1.8c1 0 1.8.5 1.8 1.7s-.8 1.8-1.9 1.8H9.3M12.8 13.9v-3.7h1.6c1 0 1.6.5 1.6 1.7s-.7 2-1.9 2h-1.3M16.8 13.9v-3.7h2" fill="none"></path>
+    </svg>
+  `,
+  nodejs: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="m12 4.5 6.5 3.8v7.4L12 19.5l-6.5-3.8V8.3L12 4.5Z"></path>
+      <path d="M12 7.7v8.6M8.9 9.5v5M15.1 9.5v5" fill="none"></path>
+    </svg>
+  `,
+  rest: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M5.5 8.5h13M5.5 12h8.5M5.5 15.5h13M15.8 9.3 18.5 12l-2.7 2.7" fill="none"></path>
+    </svg>
+  `,
+  java: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M9 16.7c0 1 1.6 1.8 3.7 1.8s3.7-.8 3.7-1.8c0-.8-1-1.3-2.5-1.6M11.1 7.1c1.4.9-1.4 2-.2 3.3M13.3 6c1.6 1-.8 1.9.2 3.1M8 14.2h9.2" fill="none"></path>
+      <path d="M8.7 14.2c.4 1 1.7 1.7 3.3 1.7s2.9-.7 3.3-1.7" fill="none"></path>
+    </svg>
+  `,
+  mysql: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <ellipse cx="12" cy="7.5" rx="5.8" ry="2.4"></ellipse>
+      <path d="M6.2 7.5v8.8c0 1.3 2.6 2.4 5.8 2.4s5.8-1.1 5.8-2.4V7.5M6.2 11.9c0 1.3 2.6 2.4 5.8 2.4s5.8-1.1 5.8-2.4" fill="none"></path>
+    </svg>
+  `,
+  database: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <ellipse cx="12" cy="7.2" rx="6.2" ry="2.7"></ellipse>
+      <path d="M5.8 7.2v9.6c0 1.5 2.8 2.7 6.2 2.7s6.2-1.2 6.2-2.7V7.2M5.8 12c0 1.5 2.8 2.7 6.2 2.7s6.2-1.2 6.2-2.7" fill="none"></path>
+    </svg>
+  `,
+};
+
 function escapeHtml(value) {
   return String(value)
     .replaceAll("&", "&amp;")
@@ -60,6 +180,24 @@ function getThumbnailExt(project) {
 function getThumbnailSrc(project, index = 1) {
   if (!hasThumbnail(project)) return "";
   return `./assets/${project.thumbnailCode}_${index}.${getThumbnailExt(project)}`;
+}
+
+function normalizeSkillItem(item) {
+  return typeof item === "string" ? { name: item } : item;
+}
+
+function renderSkillTag(item) {
+  const skill = normalizeSkillItem(item);
+  const iconMarkup = skill.icon && TOOL_ICONS[skill.icon]
+    ? `<span class="tag-icon" aria-hidden="true">${TOOL_ICONS[skill.icon]}</span>`
+    : "";
+
+  return `
+    <span class="tag${iconMarkup ? " has-icon" : ""}">
+      ${iconMarkup}
+      <span>${escapeHtml(skill.name)}</span>
+    </span>
+  `;
 }
 
 function renderThumbnailImage(project, className, index = 1) {
@@ -270,7 +408,7 @@ function render() {
                     <section class="skill-group">
                       <h3>${escapeHtml(group.title)}</h3>
                       <div class="tag-row">
-                        ${group.items.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}
+                        ${group.items.map((item) => renderSkillTag(item)).join("")}
                       </div>
                     </section>
                   `

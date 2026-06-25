@@ -525,11 +525,38 @@ button {
 .tag {
   display: inline-flex;
   align-items: center;
+  gap: 10px;
   padding: 9px 13px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.9);
   border: 1px solid rgba(26, 39, 65, 0.08);
   color: var(--text);
+}
+
+.tag.has-icon {
+  padding-left: 10px;
+}
+
+.tag-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(135deg, rgba(255, 139, 72, 0.18), rgba(77, 147, 255, 0.16));
+  color: var(--text);
+  flex: 0 0 auto;
+}
+
+.tag-icon-svg {
+  width: 14px;
+  height: 14px;
+  fill: currentColor;
+  stroke: currentColor;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-linejoin: round;
 }
 
 .tag.soft {

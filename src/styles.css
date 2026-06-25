@@ -675,16 +675,36 @@ button {
   content: "";
   position: absolute;
   inset: 0;
+  z-index: 1;
   background:
     linear-gradient(135deg, rgba(255, 255, 255, 0.55), transparent 52%),
     radial-gradient(circle at top right, rgba(255, 255, 255, 0.35), transparent 30%);
+}
+
+.project-thumb-image,
+.spotlight-image {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  object-position: center top;
+}
+
+.spotlight-image {
+  opacity: 0;
+  transition: opacity 280ms ease;
+}
+
+.spotlight-image.is-active {
+  opacity: 1;
 }
 
 .project-thumb span,
 .spotlight-label,
 .spotlight-title {
   position: relative;
-  z-index: 1;
+  z-index: 2;
 }
 
 .project-thumb span {
@@ -741,6 +761,11 @@ button {
   display: flex;
   flex-direction: column;
   justify-content: space-between;
+}
+
+.browser-chrome {
+  position: relative;
+  z-index: 2;
 }
 
 .browser-chrome {

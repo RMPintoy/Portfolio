@@ -90,8 +90,11 @@ window.PORTFOLIO_DATA = {
   projects: [
     {
       title: "Orange Calculator",
-      type: "Personal Website",
+      type: "Hours Calculator",
       stack: ["JavaScript", "UI Design", "Vercel"],
+      thumbnailCode: "hc",
+      thumbnailCount: 2,
+      thumbnailExt: "PNG",
       blurb:
         "A personal web calculator project with a bright, approachable interface and a focused user experience for quick everyday calculations.",
       impact:
@@ -105,7 +108,10 @@ window.PORTFOLIO_DATA = {
     {
       title: "Weather Forecast - Is the SKY BLUE Today?",
       type: "Weather Website",
-      stack: ["JavaScript", "HTML", "CSS", "Weather API", "Vercel"],
+      stack: ["JavaScript", "HTML", "CSS", "Weather API", "React","Vercel"],
+      thumbnailCode: "wc",
+      thumbnailCount: 4,
+      thumbnailExt: "PNG",
       blurb:
         "A playful weather web app that gives users a quick snapshot of current conditions through a simple, memorable experience centered around one question: is the sky blue today?",
       impact:
@@ -119,7 +125,9 @@ window.PORTFOLIO_DATA = {
     {
       title: "Flowchart Maker - MindVault",
       type: "Productivity Website",
-      stack: ["JavaScript", "HTML", "CSS", "Interactive UI", "Vercel"],
+      stack: ["JavaScript", "HTML", "CSS", "React", "Vercel"],
+      thumbnailCode: "mv",
+      thumbnailExt: "PNG",
       blurb:
         "An interactive flowchart-building web app designed to help users map ideas, organize processes, and turn rough concepts into clear visual structures through a clean and focused interface.",
       impact:
@@ -133,7 +141,9 @@ window.PORTFOLIO_DATA = {
     {
       title: "Portfolio Maker with Interactive Sign In",
       type: "Creative Website",
-      stack: ["JavaScript", "HTML", "CSS", "Interactive UI", "Vercel"],
+      stack: ["JavaScript", "HTML", "CSS", "React", "Vercel"],
+      thumbnailCode: "pm",
+      thumbnailExt: "PNG",
       blurb:
         "A creative portfolio-building web app that pairs a polished presentation flow with an interactive sign-in experience, making the process of creating and exploring portfolio content feel more engaging and personalized.",
       impact:

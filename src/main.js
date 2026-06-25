@@ -14,12 +14,14 @@ const projectFilters = ["All", "My Projects", "Work Projects"];
 const state = {
   activeFilter: "All",
   activeProject: projects[0],
+  activeThumbnailIndex: 0,
   activeSection: "home",
   scrollProgress: 0,
   isTopbarPinned: false,
 };
 
 let sectionObserver;
+let thumbnailInterval;
 
 function escapeHtml(value) {
   return String(value)
@@ -41,6 +43,49 @@ function hasLiveLink(project) {
 
 function hasRepoLink(project) {
   return project.repoUrl && project.repoUrl !== "#";
+}
+
+function hasThumbnail(project) {
+  return Boolean(project.thumbnailCode);
+}
+
+function getThumbnailCount(project) {
+  return Number(project.thumbnailCount) > 0 ? Number(project.thumbnailCount) : 1;
+}
+
+function getThumbnailExt(project) {
+  return project.thumbnailExt || "jpg";
+}
+
+function getThumbnailSrc(project, index = 1) {
+  if (!hasThumbnail(project)) return "";
+  return `./assets/${project.thumbnailCode}_${index}.${getThumbnailExt(project)}`;
+}
+
+function renderThumbnailImage(project, className, index = 1) {
+  if (!hasThumbnail(project)) return "";
+
+  return `
+    <img
+      src="${escapeHtml(getThumbnailSrc(project, index))}"
+      alt="${escapeHtml(project.title)} thumbnail"
+      class="${escapeHtml(className)}"
+      onerror="this.style.display='none'; this.parentElement.classList.add('thumbnail-missing');"
+    />
+  `;
+}
+
+function renderSpotlightImages(project) {
+  if (!hasThumbnail(project)) return "";
+
+  return Array.from({ length: getThumbnailCount(project) }, (_, imageIndex) => `
+    <img
+      src="${escapeHtml(getThumbnailSrc(project, imageIndex + 1))}"
+      alt="${escapeHtml(project.title)} preview ${imageIndex + 1}"
+      class="spotlight-image${imageIndex === state.activeThumbnailIndex ? " is-active" : ""}"
+      onerror="this.style.display='none'; this.parentElement.classList.add('thumbnail-missing');"
+    />
+  `).join("");
 }
 
 function ensureActiveProject() {
@@ -102,6 +147,7 @@ function render() {
   const root = document.getElementById("root");
   const currentProjects = filteredProjects();
   const activeProject = state.activeProject;
+  state.activeThumbnailIndex = Math.min(state.activeThumbnailIndex, getThumbnailCount(activeProject) - 1);
 
   root.innerHTML = `
     <div
@@ -333,7 +379,8 @@ function render() {
                       class="project-card${activeProject.title === project.title ? " active" : ""}"
                       data-project="${escapeHtml(project.title)}"
                     >
-                      <div class="project-thumb ${escapeHtml(project.accent)}">
+                      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
+                        ${renderThumbnailImage(project, "project-thumb-image", 1)}
                         <span>${escapeHtml(project.thumbnailLabel)}</span>
                       </div>
                       <div class="project-copy">
@@ -350,7 +397,8 @@ function render() {
             </div>
 
             <aside class="project-spotlight">
-              <div class="spotlight-visual ${escapeHtml(activeProject.accent)}">
+              <div class="spotlight-visual ${escapeHtml(activeProject.accent)}${hasThumbnail(activeProject) ? " has-thumbnail" : ""}">
+                ${renderSpotlightImages(activeProject)}
                 <div class="browser-chrome">
                   <span></span>
                   <span></span>
@@ -420,6 +468,7 @@ function render() {
 
   bindEvents();
   refreshSectionObserver();
+  setupThumbnailSlideshow();
 }
 
 function bindEvents() {
@@ -432,6 +481,7 @@ function bindEvents() {
   document.querySelectorAll("[data-filter]").forEach((button) => {
     button.addEventListener("click", () => {
       state.activeFilter = button.dataset.filter;
+      state.activeThumbnailIndex = 0;
       ensureActiveProject();
       render();
     });
@@ -442,10 +492,30 @@ function bindEvents() {
       const project = projects.find((item) => item.title === button.dataset.project);
       if (!project) return;
       state.activeProject = project;
+      state.activeThumbnailIndex = 0;
       render();
       scrollToElement(".project-spotlight");
     });
   });
+}
+
+function setupThumbnailSlideshow() {
+  if (thumbnailInterval) {
+    window.clearInterval(thumbnailInterval);
+    thumbnailInterval = null;
+  }
+
+  const count = getThumbnailCount(state.activeProject);
+  if (!hasThumbnail(state.activeProject) || count <= 1) return;
+
+  thumbnailInterval = window.setInterval(() => {
+    state.activeThumbnailIndex = (state.activeThumbnailIndex + 1) % count;
+    const images = Array.from(document.querySelectorAll(".spotlight-image"));
+
+    images.forEach((image, index) => {
+      image.classList.toggle("is-active", index === state.activeThumbnailIndex);
+    });
+  }, 2600);
 }
 
 function refreshSectionObserver() {

@@ -159,7 +159,7 @@ function render() {
       <div class="orb orb-three"></div>
 
       <header class="topbar${state.isTopbarPinned ? " is-pinned" : ""}">
-        <a class="brand" href="#home" data-section-link="home">${escapeHtml(profile.name)}</a>
+        <a class="brand" href="#home" data-section-link="home">${escapeHtml(profile.name)} | Web Developer</a>
         <nav class="nav">
           ${["home", "about", "experience", "projects", "contact"]
             .map(
@@ -180,7 +180,7 @@ function render() {
       <main class="layout">
         <section id="home" class="hero panel">
           <div class="hero-copy">
-            <span class="eyebrow">Full-Stack Builder | React | PHP | SQL</span>
+            <span class="eyebrow"></span>
             <h1>Designing bright, reliable web experiences that make work easier.</h1>
             <p class="lede">${escapeHtml(profile.summary)}</p>
             <div class="hero-actions">

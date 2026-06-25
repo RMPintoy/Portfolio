@@ -1,7 +1,4 @@
-import React, { useEffect, useMemo, useState } from "https://esm.sh/react@18.3.1";
-import { createRoot } from "https://esm.sh/react-dom@18.3.1/client";
-import htm from "https://esm.sh/htm@3.1.1";
-import {
+const {
   awards,
   certifications,
   education,
@@ -10,414 +7,496 @@ import {
   projects,
   skills,
   stats,
-} from "./data.js";
+} = window.PORTFOLIO_DATA;
 
-const html = htm.bind(React.createElement);
+const projectFilters = ["All", "My Projects", "Work Projects"];
 
-const projectFilters = ["All", "Website", "Enterprise", "Dashboard", "System", "Data", "Integration"];
+const state = {
+  activeFilter: "All",
+  activeProject: projects[0],
+  activeSection: "home",
+  scrollProgress: 0,
+  isTopbarPinned: false,
+};
 
-function App() {
-  const [activeFilter, setActiveFilter] = useState("All");
-  const [activeProject, setActiveProject] = useState(projects[0]);
-  const [activeSection, setActiveSection] = useState("home");
-  const [scrollProgress, setScrollProgress] = useState(0);
-  const [isTopbarPinned, setIsTopbarPinned] = useState(false);
+let sectionObserver;
 
-  const animateScrollTo = (targetTop) => {
-    const startTop = window.scrollY;
-    const distance = targetTop - startTop;
-    const duration = 720;
-    const startTime = performance.now();
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
 
-    const easeInOutCubic = (t) =>
-      t < 0.5
-        ? 4 * t * t * t
-        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+function filteredProjects() {
+  if (state.activeFilter === "All") return projects;
+  return projects.filter((project) => project.category === state.activeFilter);
+}
 
-    const step = (currentTime) => {
-      const elapsed = currentTime - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const easedProgress = easeInOutCubic(progress);
+function hasLiveLink(project) {
+  return project.liveUrl && project.liveUrl !== "#";
+}
 
-      window.scrollTo(0, startTop + distance * easedProgress);
+function hasRepoLink(project) {
+  return project.repoUrl && project.repoUrl !== "#";
+}
 
-      if (progress < 1) {
-        window.requestAnimationFrame(step);
-      }
-    };
+function ensureActiveProject() {
+  const visibleProjects = filteredProjects();
+  if (!visibleProjects.find((project) => project.title === state.activeProject.title)) {
+    state.activeProject = visibleProjects[0];
+  }
+}
 
-    window.requestAnimationFrame(step);
-  };
+function animateScrollTo(targetTop) {
+  const startTop = window.scrollY;
+  const distance = targetTop - startTop;
+  const duration = 720;
+  const startTime = performance.now();
 
-  const scrollToSection = (event, sectionId) => {
-    event.preventDefault();
-    const target = document.getElementById(sectionId);
-    if (!target) return;
+  function easeInOutCubic(t) {
+    return t < 0.5 ? 4 * t * t * t : 1 - Math.pow(-2 * t + 2, 3) / 2;
+  }
 
-    const topbar = document.querySelector(".topbar");
-    const offset = topbar ? topbar.getBoundingClientRect().height + 18 : 96;
-    const nextTop = target.getBoundingClientRect().top + window.scrollY - offset;
+  function step(currentTime) {
+    const elapsed = currentTime - startTime;
+    const progress = Math.min(elapsed / duration, 1);
+    const easedProgress = easeInOutCubic(progress);
 
-    animateScrollTo(Math.max(nextTop, 0));
-  };
+    window.scrollTo(0, startTop + distance * easedProgress);
 
-  useEffect(() => {
-    const sections = ["home", "about", "experience", "projects", "contact"];
-    const observer = new IntersectionObserver(
-      (entries) => {
-        const visible = entries
-          .filter((entry) => entry.isIntersecting)
-          .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-        if (visible?.target?.id) {
-          setActiveSection(visible.target.id);
-        }
-      },
-      { threshold: [0.2, 0.45, 0.7] }
-    );
-
-    sections.forEach((id) => {
-      const node = document.getElementById(id);
-      if (node) observer.observe(node);
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const updateScrollProgress = () => {
-      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-      const nextProgress = scrollableHeight <= 0 ? 0 : Math.min(window.scrollY / scrollableHeight, 1);
-      setScrollProgress(nextProgress);
-      setIsTopbarPinned(window.scrollY > 24);
-    };
-
-    updateScrollProgress();
-    window.addEventListener("scroll", updateScrollProgress, { passive: true });
-    window.addEventListener("resize", updateScrollProgress);
-
-    return () => {
-      window.removeEventListener("scroll", updateScrollProgress);
-      window.removeEventListener("resize", updateScrollProgress);
-    };
-  }, []);
-
-  const filteredProjects = useMemo(() => {
-    if (activeFilter === "All") return projects;
-    return projects.filter((project) => project.category === activeFilter);
-  }, [activeFilter]);
-
-  useEffect(() => {
-    if (!filteredProjects.find((project) => project.title === activeProject.title)) {
-      setActiveProject(filteredProjects[0]);
+    if (progress < 1) {
+      window.requestAnimationFrame(step);
     }
-  }, [filteredProjects, activeProject]);
+  }
 
-  return html`
+  window.requestAnimationFrame(step);
+}
+
+function scrollToSection(event, sectionId) {
+  if (event) event.preventDefault();
+  const target = document.getElementById(sectionId);
+  if (!target) return;
+
+  const topbar = document.querySelector(".topbar");
+  const offset = topbar ? topbar.getBoundingClientRect().height + 18 : 96;
+  const nextTop = target.getBoundingClientRect().top + window.scrollY - offset;
+  animateScrollTo(Math.max(nextTop, 0));
+}
+
+function scrollToElement(selector) {
+  const target = document.querySelector(selector);
+  if (!target) return;
+
+  const topbar = document.querySelector(".topbar");
+  const offset = topbar ? topbar.getBoundingClientRect().height + 18 : 96;
+  const nextTop = target.getBoundingClientRect().top + window.scrollY - offset;
+  animateScrollTo(Math.max(nextTop, 0));
+}
+
+function render() {
+  ensureActiveProject();
+
+  const root = document.getElementById("root");
+  const currentProjects = filteredProjects();
+  const activeProject = state.activeProject;
+
+  root.innerHTML = `
     <div
-      className="page-shell"
-      style=${{
-        "--night-progress": scrollProgress,
-        "--night-shift": `${scrollProgress * 32}%`,
-      }}
+      class="page-shell"
+      style="--night-progress: ${state.scrollProgress}; --night-shift: ${state.scrollProgress * 32}%"
     >
-      <div className="orb orb-one"></div>
-      <div className="orb orb-two"></div>
-      <div className="orb orb-three"></div>
+      <div class="orb orb-one"></div>
+      <div class="orb orb-two"></div>
+      <div class="orb orb-three"></div>
 
-      <header className=${isTopbarPinned ? "topbar is-pinned" : "topbar"}>
-        <a className="brand" href="#home" onClick=${(event) => scrollToSection(event, "home")}>
-          ${profile.name}
-        </a>
-        <nav className="nav">
-          ${["home", "about", "experience", "projects", "contact"].map(
-            (item) => html`
-              <a
-                key=${item}
-                href=${`#${item}`}
-                className=${activeSection === item ? "nav-link active" : "nav-link"}
-                onClick=${(event) => scrollToSection(event, item)}
-              >
-                ${item}
-              </a>
-            `
-          )}
+      <header class="topbar${state.isTopbarPinned ? " is-pinned" : ""}">
+        <a class="brand" href="#home" data-section-link="home">${escapeHtml(profile.name)}</a>
+        <nav class="nav">
+          ${["home", "about", "experience", "projects", "contact"]
+            .map(
+              (item) => `
+                <a
+                  href="#${item}"
+                  class="nav-link${state.activeSection === item ? " active" : ""}"
+                  data-section-link="${item}"
+                >
+                  ${escapeHtml(item)}
+                </a>
+              `
+            )
+            .join("")}
         </nav>
       </header>
 
-      <main className="layout">
-        <section id="home" className="hero panel">
-          <div className="hero-copy">
-            <span className="eyebrow">Full-Stack Builder | React | PHP | SQL</span>
+      <main class="layout">
+        <section id="home" class="hero panel">
+          <div class="hero-copy">
+            <span class="eyebrow">Full-Stack Builder | React | PHP | SQL</span>
             <h1>Designing bright, reliable web experiences that make work easier.</h1>
-            <p className="lede">${profile.summary}</p>
-            <div className="hero-actions">
-              <a className="btn btn-primary" href="#projects">View My Work</a>
+            <p class="lede">${escapeHtml(profile.summary)}</p>
+            <div class="hero-actions">
+              <a class="btn btn-primary" href="#projects" data-section-link="projects">View My Work</a>
               <a
-                className="btn btn-secondary"
+                class="btn btn-secondary"
                 href="./assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf"
                 target="_blank"
                 rel="noreferrer"
               >
                 View Resume
               </a>
-              <a className="btn btn-secondary" href=${profile.linkedin} target="_blank" rel="noreferrer">
+              <a class="btn btn-secondary" href="${escapeHtml(profile.linkedin)}" target="_blank" rel="noreferrer">
                 LinkedIn
               </a>
             </div>
-            <ul className="highlight-list">
-              ${profile.highlights.map(
-                (item) => html`<li key=${item}>${item}</li>`
-              )}
+            <ul class="highlight-list">
+              ${profile.highlights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
             </ul>
           </div>
 
-          <aside className="hero-card">
-            <div className="hero-card-header">
-              <span className="status-dot"></span>
+          <aside class="hero-card">
+            <div class="hero-card-header">
+              <span class="status-dot"></span>
               <p>Currently building user-focused internal systems</p>
             </div>
-            <div className="stat-grid">
-              ${stats.map(
-                (stat) => html`
-                  <article key=${stat.label} className="stat-tile">
-                    <strong>${stat.value}</strong>
-                    <span>${stat.label}</span>
-                  </article>
-                `
-              )}
+            <div class="stat-grid">
+              ${stats
+                .map(
+                  (stat) => `
+                    <article class="stat-tile">
+                      <strong>${escapeHtml(stat.value)}</strong>
+                      <span>${escapeHtml(stat.label)}</span>
+                    </article>
+                  `
+                )
+                .join("")}
             </div>
           </aside>
         </section>
 
-        <section id="about" className="section-grid">
-          <article className="panel about-card">
-            <div className="section-heading">
-              <span className="section-kicker">About Me</span>
-              <h2>Technical depth with a calm, practical approach.</h2>
+        <section id="about" class="section-grid">
+          <article class="panel about-card">
+            <div class="about-intro">
+              <div class="about-photo-box" aria-label="2x2 picture placeholder">
+                <div class="photo-frame">
+                  <img src="./assets/rica_pic.jpg" alt="Rica Mae Pintoy portrait" class="about-photo" />
+                </div>
+              </div>
+              <div>
+                <div class="section-heading">
+                  <span class="section-kicker">About Me</span>
+                  <h2>Technical depth with a calm, practical approach.</h2>
+                </div>
+              </div>
             </div>
             <p>
               I build responsive applications, integrate APIs, and turn complex business workflows into clean,
               approachable interfaces. My background spans frontend development, backend services, data-driven systems,
               and collaboration with cross-functional teams.
             </p>
-            <div className="mini-profile">
+            <div class="mini-profile">
               <div>
                 <span>Location</span>
-                <strong>${profile.location}</strong>
+                <strong>${escapeHtml(profile.location)}</strong>
               </div>
               <div>
                 <span>Education</span>
-                <strong>${education.degree}</strong>
+                <strong>${escapeHtml(education.degree)}</strong>
               </div>
               <div>
                 <span>Recognition</span>
-                <strong>${education.distinctions.join(" • ")}</strong>
+                <strong>${escapeHtml(education.distinctions.join(" • "))}</strong>
               </div>
             </div>
           </article>
 
-          <article className="panel skills-card">
-            <div className="section-heading">
-              <span className="section-kicker">Skills</span>
+          <article class="panel skills-card">
+            <div class="section-heading">
+              <span class="section-kicker">Skills</span>
               <h2>Tools I work with</h2>
             </div>
-            <div className="skill-groups">
-              ${skills.map(
-                (group) => html`
-                  <section key=${group.title} className="skill-group">
-                    <h3>${group.title}</h3>
-                    <div className="tag-row">
-                      ${group.items.map(
-                        (item) => html`<span key=${item} className="tag">${item}</span>`
-                      )}
-                    </div>
-                  </section>
-                `
-              )}
+            <div class="skill-groups">
+              ${skills
+                .map(
+                  (group) => `
+                    <section class="skill-group">
+                      <h3>${escapeHtml(group.title)}</h3>
+                      <div class="tag-row">
+                        ${group.items.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}
+                      </div>
+                    </section>
+                  `
+                )
+                .join("")}
             </div>
           </article>
         </section>
 
-        <section id="experience" className="section-grid">
-          <article className="panel timeline-card">
-            <div className="section-heading">
-              <span className="section-kicker">Experience</span>
+        <section id="experience" class="section-grid">
+          <article class="panel timeline-card">
+            <div class="section-heading">
+              <span class="section-kicker">Experience</span>
               <h2>Hands-on work across enterprise systems</h2>
             </div>
-            <div className="timeline">
-              ${experience.map(
-                (job) => html`
-                  <article key=${`${job.company}-${job.role}`} className="timeline-item">
-                    <div className="timeline-marker"></div>
-                    <div className="timeline-content">
-                      <div className="timeline-topline">
-                        <h3>${job.role}</h3>
-                        <span>${job.period}</span>
+            <div class="timeline">
+              ${experience
+                .map(
+                  (job) => `
+                    <article class="timeline-item">
+                      <div class="timeline-marker"></div>
+                      <div class="timeline-content">
+                        <div class="timeline-topline">
+                          <h3>${escapeHtml(job.role)}</h3>
+                          <span>${escapeHtml(job.period)}</span>
+                        </div>
+                        <p class="timeline-company">${escapeHtml(job.company)} • ${escapeHtml(job.location)}</p>
+                        <ul class="detail-list">
+                          ${job.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+                        </ul>
                       </div>
-                      <p className="timeline-company">${job.company} • ${job.location}</p>
-                      <ul className="detail-list">
-                        ${job.points.map(
-                          (point) => html`<li key=${point}>${point}</li>`
-                        )}
-                      </ul>
-                    </div>
-                  </article>
-                `
-              )}
+                    </article>
+                  `
+                )
+                .join("")}
             </div>
           </article>
 
-          <article className="panel side-stack">
-            <section className="stack-block">
-              <div className="section-heading">
-                <span className="section-kicker">Education</span>
-                <h2>${education.school}</h2>
+          <article class="panel side-stack">
+            <section class="stack-block">
+              <div class="section-heading">
+                <span class="section-kicker">Education</span>
+                <h2>${escapeHtml(education.school)}</h2>
               </div>
-              <p>${education.degree}</p>
-              <p className="muted">${education.period}</p>
-              <div className="tag-row">
-                ${education.distinctions.map(
-                  (item) => html`<span key=${item} className="tag soft">${item}</span>`
-                )}
+              <p>${escapeHtml(education.degree)}</p>
+              <p class="muted">${escapeHtml(education.period)}</p>
+              <div class="tag-row">
+                ${education.distinctions.map((item) => `<span class="tag soft">${escapeHtml(item)}</span>`).join("")}
               </div>
             </section>
 
-            <section className="stack-block">
-              <div className="section-heading">
-                <span className="section-kicker">Certifications</span>
+            <section class="stack-block">
+              <div class="section-heading">
+                <span class="section-kicker">Certifications</span>
                 <h2>Learning & Growth</h2>
               </div>
-              <ul className="detail-list compact">
-                ${certifications.map(
-                  (item) => html`<li key=${item}>${item}</li>`
-                )}
+              <ul class="detail-list compact">
+                ${certifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
               </ul>
             </section>
 
-            <section className="stack-block">
-              <div className="section-heading">
-                <span className="section-kicker">Awards</span>
+            <section class="stack-block">
+              <div class="section-heading">
+                <span class="section-kicker">Awards</span>
                 <h2>Recognition</h2>
               </div>
-              <ul className="detail-list compact">
-                ${awards.map((item) => html`<li key=${item}>${item}</li>`)}
+              <ul class="detail-list compact">
+                ${awards.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
               </ul>
             </section>
           </article>
         </section>
 
-        <section id="projects" className="panel projects-panel">
-          <div className="section-heading split">
+        <section id="projects" class="panel projects-panel">
+          <div class="section-heading split">
             <div>
-              <span className="section-kicker">Portfolio</span>
+              <span class="section-kicker">Portfolio</span>
               <h2>Website and system showcase</h2>
             </div>
-            <p className="muted">
+            <p class="muted">
               Click a project card to preview details. The gallery is ready for live website links and thumbnail updates.
             </p>
           </div>
 
-          <div className="filter-row">
-            ${projectFilters.map(
-              (filter) => html`
-                <button
-                  key=${filter}
-                  className=${activeFilter === filter ? "filter-chip active" : "filter-chip"}
-                  onClick=${() => setActiveFilter(filter)}
-                >
-                  ${filter}
-                </button>
-              `
-            )}
-          </div>
-
-          <div className="project-layout">
-            <div className="project-grid">
-              ${filteredProjects.map(
-                (project) => html`
+          <div class="filter-row">
+            ${projectFilters
+              .map(
+                (filter) => `
                   <button
-                    key=${project.title}
-                    className=${activeProject.title === project.title ? "project-card active" : "project-card"}
-                    onClick=${() => setActiveProject(project)}
+                    class="filter-chip${state.activeFilter === filter ? " active" : ""}"
+                    data-filter="${escapeHtml(filter)}"
                   >
-                    <div className=${`project-thumb ${project.accent}`}>
-                      <span>${project.thumbnailLabel}</span>
-                    </div>
-                    <div className="project-copy">
-                      <div className="project-topline">
-                        <h3>${project.title}</h3>
-                        <span>${project.type}</span>
-                      </div>
-                      <p>${project.blurb}</p>
-                    </div>
+                    ${escapeHtml(filter)}
                   </button>
                 `
-              )}
+              )
+              .join("")}
+          </div>
+
+          <div class="project-layout">
+            <div class="project-grid">
+              ${currentProjects
+                .map(
+                  (project) => `
+                    <button
+                      class="project-card${activeProject.title === project.title ? " active" : ""}"
+                      data-project="${escapeHtml(project.title)}"
+                    >
+                      <div class="project-thumb ${escapeHtml(project.accent)}">
+                        <span>${escapeHtml(project.thumbnailLabel)}</span>
+                      </div>
+                      <div class="project-copy">
+                        <div class="project-topline">
+                          <h3>${escapeHtml(project.title)}</h3>
+                          <span>${escapeHtml(project.type)}</span>
+                        </div>
+                        <p>${escapeHtml(project.blurb)}</p>
+                      </div>
+                    </button>
+                  `
+                )
+                .join("")}
             </div>
 
-            <aside className="project-spotlight">
-              <div className=${`spotlight-visual ${activeProject.accent}`}>
-                <div className="browser-chrome">
+            <aside class="project-spotlight">
+              <div class="spotlight-visual ${escapeHtml(activeProject.accent)}">
+                <div class="browser-chrome">
                   <span></span>
                   <span></span>
                   <span></span>
                 </div>
-                <div className="spotlight-label">${activeProject.thumbnailLabel}</div>
-                <div className="spotlight-title">${activeProject.title}</div>
+                <div class="spotlight-label">${escapeHtml(activeProject.thumbnailLabel)}</div>
+                <div class="spotlight-title">${escapeHtml(activeProject.title)}</div>
               </div>
 
-              <div className="spotlight-content">
-                <span className="section-kicker">${activeProject.category}</span>
-                <h3>${activeProject.title}</h3>
-                <p>${activeProject.blurb}</p>
-                <p className="impact">${activeProject.impact}</p>
-                <div className="tag-row">
-                  ${activeProject.stack.map(
-                    (item) => html`<span key=${item} className="tag">${item}</span>`
-                  )}
+              <div class="spotlight-content">
+                <span class="section-kicker">${escapeHtml(activeProject.category)}</span>
+                <h3>${escapeHtml(activeProject.title)}</h3>
+                <p>${escapeHtml(activeProject.blurb)}</p>
+                <p class="impact">${escapeHtml(activeProject.impact)}</p>
+                <div class="tag-row">
+                  ${activeProject.stack.map((item) => `<span class="tag">${escapeHtml(item)}</span>`).join("")}
                 </div>
-                <div className="hero-actions">
-                  <a
-                    className="btn btn-primary"
-                    href=${activeProject.liveUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    Open Website
-                  </a>
-                  <a
-                    className="btn btn-secondary"
-                    href=${activeProject.repoUrl}
-                    target="_blank"
-                    rel="noreferrer"
-                  >
-                    View Code
-                  </a>
-                </div>
+                ${
+                  hasLiveLink(activeProject) || hasRepoLink(activeProject)
+                    ? `
+                      <div class="hero-actions">
+                        ${
+                          hasLiveLink(activeProject)
+                            ? `
+                              <a class="btn btn-primary" href="${escapeHtml(activeProject.liveUrl)}" target="_blank" rel="noreferrer">
+                                Open Website
+                              </a>
+                            `
+                            : ""
+                        }
+                        ${
+                          hasRepoLink(activeProject)
+                            ? `
+                              <a class="btn btn-secondary" href="${escapeHtml(activeProject.repoUrl)}" target="_blank" rel="noreferrer">
+                                View Code
+                              </a>
+                            `
+                            : ""
+                        }
+                      </div>
+                    `
+                    : ""
+                }
               </div>
             </aside>
           </div>
         </section>
 
-        <section id="contact" className="panel contact-panel">
-          <div className="section-heading">
-            <span className="section-kicker">Contact</span>
-            <h2>Let’s build something useful and well-crafted.</h2>
+        <section id="contact" class="panel contact-panel">
+          <div class="section-heading">
+            <span class="section-kicker">Contact</span>
+            <h2>Let's build something useful and well-crafted.</h2>
           </div>
-          <p className="contact-copy">
-            I’m open to web development opportunities where I can contribute strong frontend work, dependable backend
+          <p class="contact-copy">
+            I'm open to web development opportunities where I can contribute strong frontend work, dependable backend
             logic, and thoughtful collaboration.
           </p>
-          <div className="contact-links">
-            <a href=${`mailto:${profile.email}`}>${profile.email}</a>
-            <a href=${`tel:${profile.phone.replace(/\s+/g, "")}`}>${profile.phone}</a>
-            <a href=${profile.linkedin} target="_blank" rel="noreferrer">LinkedIn Profile</a>
+          <div class="contact-links">
+            <a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>
+            <a href="tel:${escapeHtml(profile.phone.replace(/\s+/g, ""))}">${escapeHtml(profile.phone)}</a>
+            <a href="${escapeHtml(profile.linkedin)}" target="_blank" rel="noreferrer">LinkedIn Profile</a>
           </div>
         </section>
       </main>
     </div>
   `;
+
+  bindEvents();
+  refreshSectionObserver();
 }
 
-createRoot(document.getElementById("root")).render(html`<${App} />`);
+function bindEvents() {
+  document.querySelectorAll("[data-section-link]").forEach((link) => {
+    link.addEventListener("click", (event) => {
+      scrollToSection(event, link.dataset.sectionLink);
+    });
+  });
+
+  document.querySelectorAll("[data-filter]").forEach((button) => {
+    button.addEventListener("click", () => {
+      state.activeFilter = button.dataset.filter;
+      ensureActiveProject();
+      render();
+    });
+  });
+
+  document.querySelectorAll("[data-project]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const project = projects.find((item) => item.title === button.dataset.project);
+      if (!project) return;
+      state.activeProject = project;
+      render();
+      scrollToElement(".project-spotlight");
+    });
+  });
+}
+
+function refreshSectionObserver() {
+  const sections = ["home", "about", "experience", "projects", "contact"];
+
+  if (sectionObserver) {
+    sectionObserver.disconnect();
+  }
+
+  sectionObserver = new IntersectionObserver(
+    (entries) => {
+      const visible = entries
+        .filter((entry) => entry.isIntersecting)
+        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+
+      if (visible && visible.target && visible.target.id && state.activeSection !== visible.target.id) {
+        state.activeSection = visible.target.id;
+        render();
+      }
+    },
+    { threshold: [0.2, 0.45, 0.7] }
+  );
+
+  sections.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node) sectionObserver.observe(node);
+  });
+}
+
+function setupScrollTracking() {
+  function updateScrollProgress() {
+    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+    state.scrollProgress = scrollableHeight <= 0 ? 0 : Math.min(window.scrollY / scrollableHeight, 1);
+    state.isTopbarPinned = window.scrollY > 24;
+    const shell = document.querySelector(".page-shell");
+    const topbar = document.querySelector(".topbar");
+
+    if (shell) {
+      shell.style.setProperty("--night-progress", state.scrollProgress);
+      shell.style.setProperty("--night-shift", `${state.scrollProgress * 32}%`);
+    }
+
+    if (topbar) {
+      topbar.classList.toggle("is-pinned", state.isTopbarPinned);
+    }
+  }
+
+  updateScrollProgress();
+  window.addEventListener("scroll", updateScrollProgress, { passive: true });
+  window.addEventListener("resize", updateScrollProgress);
+}
+
+render();
+setupScrollTracking();

@@ -1,0 +1,7 @@
+.git
+.agents
+.vscode
+.tmp-http-err.log
+.tmp-http-out.log
+start-local.ps1
+README.md

@@ -1,12 +1,36 @@
 # Rica Mae Pintoy Portfolio
 
-This is a React-based portfolio built without a Node toolchain so it can run as a simple static site.
+This is a portfolio site built to run as a simple static website with no build step required.
 
 ## Run it
 
-Open [index.html](/C:/Users/Admin/Desktop/Rica_proj/Portfolio/index.html) in a browser, or serve the folder with any static server.
+Open [index.html](/C:/Users/Admin/Desktop/Rica_proj/Portfolio/index.html) in a browser.
+
+If you prefer to serve it locally, run this from the project folder:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File .\start-local.ps1
+```
+
+Then open `http://127.0.0.1:4173/`.
 
 Your resume is included at [assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf](/C:/Users/Admin/Desktop/Rica_proj/Portfolio/assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf).
+
+## Run with Docker
+
+After installing Docker Desktop, run this from the project root:
+
+```powershell
+docker compose up --build
+```
+
+Then open `http://localhost:4173/`.
+
+To stop the container:
+
+```powershell
+docker compose down
+```
 
 ## Vercel Deployment
 

@@ -1,0 +1,9 @@
+services:
+  portfolio:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: rica-portfolio
+    ports:
+      - "4173:80"
+    restart: unless-stopped

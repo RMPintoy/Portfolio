@@ -111,7 +111,7 @@ window.PORTFOLIO_DATA = {
       thumbnailCount: 2,
       thumbnailExt: "PNG",
       blurb:
-        "A personal web calculator project with a bright, approachable interface and a focused user experience for quick everyday calculations.",
+        "A personal web hour calculator project with a bright, approachable interface and a focused user experience for quick time calculations.",
       impact:
         "Published as a live personal website and ready to be featured directly in the portfolio showcase.",
       category: "My Projects",

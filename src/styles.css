@@ -47,15 +47,61 @@ button {
 
 .page-shell {
   position: relative;
-  overflow: hidden;
+  overflow-x: clip;
+}
+
+.page-shell::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -2;
+  pointer-events: none;
+  opacity: calc(1 - (var(--night-progress, 0) * 0.82));
+  transition: opacity 320ms ease;
+  background:
+    radial-gradient(circle at 18% 14%, rgba(255, 255, 255, 0.52), transparent 22%),
+    radial-gradient(circle at 78% 10%, rgba(255, 255, 255, 0.24), transparent 26%),
+    linear-gradient(180deg, #fffdf8 0%, #f8fafc 42%, #eff3f8 100%);
+}
+
+.page-shell::after {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  pointer-events: none;
+  opacity: calc(var(--night-progress, 0) * 0.98);
+  transition: opacity 320ms ease;
+  background:
+    radial-gradient(
+      1200px circle at calc(92% - (var(--night-progress, 0) * 18%)) calc(100% - (var(--night-progress, 0) * 12%)),
+      rgba(128, 140, 158, 0.92) 0%,
+      rgba(128, 140, 158, 0.72) 20%,
+      rgba(128, 140, 158, 0.34) 42%,
+      rgba(128, 140, 158, 0.08) 60%,
+      transparent 76%
+    ),
+    radial-gradient(
+      900px circle at calc(76% - (var(--night-progress, 0) * 10%)) calc(92% - (var(--night-progress, 0) * 8%)),
+      rgba(128, 140, 158, 0.18) 0%,
+      transparent 58%
+    ),
+    radial-gradient(
+      700px circle at 50% -10%,
+      rgba(255, 255, 255, 0.08) 0%,
+      transparent 46%
+    ),
+    linear-gradient(180deg, #e9eef4 0%, #b4becb 42%, #808c9e 74%, #6c7789 100%);
 }
 
 .orb {
   position: fixed;
   border-radius: 999px;
-  filter: blur(10px);
-  opacity: 0.45;
+  filter: blur(14px);
+  opacity: calc(0.42 + (var(--night-progress, 0) * 0.18));
   pointer-events: none;
+  box-shadow: 0 0 48px rgba(128, 140, 158, 0.14);
+  transition: opacity 320ms ease, transform 320ms ease, box-shadow 320ms ease, filter 320ms ease;
 }
 
 .orb-one {
@@ -63,7 +109,13 @@ button {
   left: -70px;
   width: 220px;
   height: 220px;
-  background: rgba(255, 139, 72, 0.18);
+  background:
+    radial-gradient(circle at 32% 30%, rgba(255, 255, 255, 0.22), transparent 28%),
+    linear-gradient(
+      135deg,
+      rgba(255, 139, 72, calc(0.16 - (var(--night-progress, 0) * 0.03))),
+      rgba(128, 140, 158, calc(0.18 + (var(--night-progress, 0) * 0.42)))
+    );
 }
 
 .orb-two {
@@ -71,7 +123,13 @@ button {
   right: -90px;
   width: 260px;
   height: 260px;
-  background: rgba(83, 184, 127, 0.15);
+  background:
+    radial-gradient(circle at 38% 34%, rgba(255, 255, 255, 0.2), transparent 30%),
+    linear-gradient(
+      135deg,
+      rgba(83, 184, 127, calc(0.14 - (var(--night-progress, 0) * 0.025))),
+      rgba(128, 140, 158, calc(0.18 + (var(--night-progress, 0) * 0.4)))
+    );
 }
 
 .orb-three {
@@ -79,7 +137,13 @@ button {
   left: 12%;
   width: 180px;
   height: 180px;
-  background: rgba(77, 147, 255, 0.14);
+  background:
+    radial-gradient(circle at 36% 28%, rgba(255, 255, 255, 0.18), transparent 28%),
+    linear-gradient(
+      135deg,
+      rgba(77, 147, 255, calc(0.15 - (var(--night-progress, 0) * 0.025))),
+      rgba(128, 140, 158, calc(0.18 + (var(--night-progress, 0) * 0.42)))
+    );
 }
 
 .topbar {
@@ -98,6 +162,26 @@ button {
   border: 1px solid rgba(255, 255, 255, 0.75);
   border-radius: 999px;
   box-shadow: 0 10px 30px rgba(83, 101, 140, 0.12);
+  transition:
+    border-radius 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    width 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    margin-top 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    padding 380ms cubic-bezier(0.22, 1, 0.36, 1),
+    background 320ms ease,
+    box-shadow 320ms ease,
+    transform 380ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.topbar.is-pinned {
+  width: min(1188px, 100%);
+  margin-top: 0;
+  border-top-left-radius: 0;
+  border-top-right-radius: 0;
+  border-bottom-left-radius: 26px;
+  border-bottom-right-radius: 26px;
+  background: rgba(255, 255, 255, 0.82);
+  box-shadow: 0 16px 34px rgba(34, 52, 82, 0.14);
+  transform: translateY(0);
 }
 
 .brand {
@@ -118,13 +202,14 @@ button {
   border-radius: 999px;
   color: var(--muted);
   text-transform: capitalize;
-  transition: 180ms ease;
+  transition: background 220ms ease, color 220ms ease, transform 220ms ease;
 }
 
 .nav-link:hover,
 .nav-link.active {
   color: var(--text);
   background: rgba(255, 255, 255, 0.84);
+  transform: translateY(-1px);
 }
 
 .layout {
@@ -641,13 +726,20 @@ button {
 }
 
 .contact-panel {
+  position: relative;
   text-align: center;
+  background:
+    linear-gradient(135deg, rgba(255, 139, 72, 0.18), rgba(255, 202, 66, 0.16) 32%, rgba(83, 184, 127, 0.16) 66%, rgba(77, 147, 255, 0.18)),
+    rgba(255, 255, 255, 0.92);
+  border: 1px solid rgba(255, 255, 255, 0.82);
+  box-shadow: 0 28px 60px rgba(77, 147, 255, 0.14);
 }
 
 .contact-copy {
   max-width: 58ch;
   margin: 18px auto 0;
   line-height: 1.75;
+  color: #27405f;
 }
 
 .contact-links {
@@ -658,8 +750,16 @@ button {
 .contact-links a {
   padding: 14px 18px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.88);
-  border: 1px solid var(--line);
+  background: rgba(255, 255, 255, 0.96);
+  border: 1px solid rgba(24, 49, 79, 0.1);
+  box-shadow: 0 12px 24px rgba(24, 49, 79, 0.08);
+  transition: transform 180ms ease, box-shadow 180ms ease, background 180ms ease;
+}
+
+.contact-links a:hover {
+  transform: translateY(-2px);
+  background: #ffffff;
+  box-shadow: 0 18px 28px rgba(255, 139, 72, 0.18);
 }
 
 @media (max-width: 980px) {
@@ -695,11 +795,21 @@ button {
 
 @media (max-width: 700px) {
   .topbar {
-    position: static;
+    position: sticky;
+    top: 10px;
     width: min(100% - 16px, 1160px);
     margin-top: 12px;
     flex-direction: column;
     align-items: stretch;
+  }
+
+  .topbar.is-pinned {
+    width: min(100% - 16px, 1160px);
+    margin-top: 0;
+    border-top-left-radius: 0;
+    border-top-right-radius: 0;
+    border-bottom-left-radius: 22px;
+    border-bottom-right-radius: 22px;
   }
 
   .nav {

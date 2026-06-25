@@ -20,6 +20,46 @@ function App() {
   const [activeFilter, setActiveFilter] = useState("All");
   const [activeProject, setActiveProject] = useState(projects[0]);
   const [activeSection, setActiveSection] = useState("home");
+  const [scrollProgress, setScrollProgress] = useState(0);
+  const [isTopbarPinned, setIsTopbarPinned] = useState(false);
+
+  const animateScrollTo = (targetTop) => {
+    const startTop = window.scrollY;
+    const distance = targetTop - startTop;
+    const duration = 720;
+    const startTime = performance.now();
+
+    const easeInOutCubic = (t) =>
+      t < 0.5
+        ? 4 * t * t * t
+        : 1 - Math.pow(-2 * t + 2, 3) / 2;
+
+    const step = (currentTime) => {
+      const elapsed = currentTime - startTime;
+      const progress = Math.min(elapsed / duration, 1);
+      const easedProgress = easeInOutCubic(progress);
+
+      window.scrollTo(0, startTop + distance * easedProgress);
+
+      if (progress < 1) {
+        window.requestAnimationFrame(step);
+      }
+    };
+
+    window.requestAnimationFrame(step);
+  };
+
+  const scrollToSection = (event, sectionId) => {
+    event.preventDefault();
+    const target = document.getElementById(sectionId);
+    if (!target) return;
+
+    const topbar = document.querySelector(".topbar");
+    const offset = topbar ? topbar.getBoundingClientRect().height + 18 : 96;
+    const nextTop = target.getBoundingClientRect().top + window.scrollY - offset;
+
+    animateScrollTo(Math.max(nextTop, 0));
+  };
 
   useEffect(() => {
     const sections = ["home", "about", "experience", "projects", "contact"];
@@ -44,6 +84,24 @@ function App() {
     return () => observer.disconnect();
   }, []);
 
+  useEffect(() => {
+    const updateScrollProgress = () => {
+      const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
+      const nextProgress = scrollableHeight <= 0 ? 0 : Math.min(window.scrollY / scrollableHeight, 1);
+      setScrollProgress(nextProgress);
+      setIsTopbarPinned(window.scrollY > 24);
+    };
+
+    updateScrollProgress();
+    window.addEventListener("scroll", updateScrollProgress, { passive: true });
+    window.addEventListener("resize", updateScrollProgress);
+
+    return () => {
+      window.removeEventListener("scroll", updateScrollProgress);
+      window.removeEventListener("resize", updateScrollProgress);
+    };
+  }, []);
+
   const filteredProjects = useMemo(() => {
     if (activeFilter === "All") return projects;
     return projects.filter((project) => project.category === activeFilter);
@@ -56,13 +114,21 @@ function App() {
   }, [filteredProjects, activeProject]);
 
   return html`
-    <div className="page-shell">
+    <div
+      className="page-shell"
+      style=${{
+        "--night-progress": scrollProgress,
+        "--night-shift": `${scrollProgress * 32}%`,
+      }}
+    >
       <div className="orb orb-one"></div>
       <div className="orb orb-two"></div>
       <div className="orb orb-three"></div>
 
-      <header className="topbar">
-        <a className="brand" href="#home">${profile.name}</a>
+      <header className=${isTopbarPinned ? "topbar is-pinned" : "topbar"}>
+        <a className="brand" href="#home" onClick=${(event) => scrollToSection(event, "home")}>
+          ${profile.name}
+        </a>
         <nav className="nav">
           ${["home", "about", "experience", "projects", "contact"].map(
             (item) => html`
@@ -70,6 +136,7 @@ function App() {
                 key=${item}
                 href=${`#${item}`}
                 className=${activeSection === item ? "nav-link active" : "nav-link"}
+                onClick=${(event) => scrollToSection(event, item)}
               >
                 ${item}
               </a>

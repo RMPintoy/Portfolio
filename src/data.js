@@ -170,6 +170,23 @@ window.PORTFOLIO_DATA = {
       accent: "orange",
     },
     {
+      title: "DocsBunny Document Editor",
+      type: "Document Editor",
+      stack: ["JavaScript", "HTML", "CSS", "React", "Vercel"],
+      thumbnailCode: "db",
+      thumbnailCount: 1,
+      thumbnailExt: "png",
+      blurb:
+        "A web-based document editor that lets users create, upload, format, save, and share editable documents through a clean workspace interface.",
+      impact:
+        "Live demo login: use Admin as the username and a as the password.",
+      category: "My Projects",
+      liveUrl: "https://docsbunny.vercel.app",
+      repoUrl: "#",
+      thumbnailLabel: "Docs Editor",
+      accent: "blue",
+    },
+    {
       title: "TaskBanana",
       type: "Enterprise Platform",
       stack: ["PHP", "MySQL", "JavaScript"],

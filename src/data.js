@@ -179,7 +179,7 @@ window.PORTFOLIO_DATA = {
       blurb:
         "A web-based document editor that lets users create, upload, format, save, and share editable documents through a clean workspace interface.",
       impact:
-        "Live demo login: use Admin as the username and a as the password.",
+        "Live demo login: Username: Admin, Password: a",
       category: "My Projects",
       liveUrl: "https://docsbunny.vercel.app",
       repoUrl: "#",

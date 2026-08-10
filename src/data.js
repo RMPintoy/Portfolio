@@ -172,14 +172,14 @@ window.PORTFOLIO_DATA = {
     {
       title: "DocsBunny Document Editor",
       type: "Document Editor",
-      stack: ["JavaScript", "HTML", "CSS", "React", "Vercel"],
+      stack: ["React", "Node.js", "Docker", "JavaScript", "HTML", "CSS", "Vercel"],
       thumbnailCode: "db",
-      thumbnailCount: 1,
+      thumbnailCount: 2,
       thumbnailExt: "png",
       blurb:
-        "A web-based document editor that lets users create, upload, format, save, and share editable documents through a clean workspace interface.",
+        "DocsBunny is a lightweight collaborative document editor inspired by Google Docs, focused on authentication, document creation, rich-text editing, file upload, sharing, persistence, and realtime collaboration.",
       impact:
-        "Live demo login: Username: Admin, Password: a",
+        "Built with React for the frontend, Node.js for the backend, and Docker for the local environment, with Codex 5.4 assisting the workflow. Live demo login: Username: Admin, Password: a",
       category: "My Projects",
       liveUrl: "https://docsbunny.vercel.app",
       repoUrl: "#",

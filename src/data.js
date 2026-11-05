@@ -6,6 +6,7 @@ window.PORTFOLIO_DATA = {
     phone: "+63 975 081 4958",
     email: "ricapintoy@gmail.com",
     linkedin: "https://www.linkedin.com/in/rica-mae-pintoy",
+    github: "https://github.com/RMPintoy",
     summary:
       "Results-driven Web Developer with 2+ years of experience building and optimizing full-stack web applications using React, JavaScript, PHP, and SQL. Passionate about user-friendly interfaces, scalable systems, cloud technologies, and AI-assisted workflows.",
     highlights: [
@@ -41,6 +42,7 @@ window.PORTFOLIO_DATA = {
         { name: "Node.js", icon: "nodejs" },
         { name: "REST API", icon: "rest" },
         { name: "Java", icon: "java" },
+        { name: "Python", icon: "python" },
       ],
     },
     {
@@ -48,6 +50,7 @@ window.PORTFOLIO_DATA = {
       items: [
         { name: "MySQL", icon: "mysql" },
         { name: "SQL", icon: "database" },
+        { name: "PostgreSQL", icon: "database" },
       ],
     },
     {
@@ -58,6 +61,9 @@ window.PORTFOLIO_DATA = {
         { name: "GitHub", icon: "github" },
         { name: "SVN", icon: "svn" },
         { name: "Vercel", icon: "vercel" },
+        { name: "Render", icon: "render" },
+        { name: "Neon", icon: "neon" },
+        { name: "Supabase", icon: "supabase" },
       ],
     },
   ],
@@ -103,6 +109,23 @@ window.PORTFOLIO_DATA = {
     "Board of Public Relations - JPCS, TSU Chapter, 2023",
   ],
   projects: [
+    {
+      title: "CowFlo POS System",
+      type: "POS & Inventory Platform",
+      stack: ["React", "Vite", "Tailwind CSS", "Node.js", "Express", "PostgreSQL", "Docker"],
+      thumbnailCode: "cf",
+      thumbnailCount: 6,
+      thumbnailExt: "png",
+      blurb:
+        "CowFlo is a point-of-sale and inventory system developed for business clients running multiple branches, pairing a cashier POS for fast checkout with an owner dashboard for managing the whole operation.",
+      impact:
+        "Gives owners one place to compare sales, refunds, items sold, and low-stock alerts across all branches or per branch, while tracking each item's stock by location.",
+      category: "My Projects",
+      liveUrl: "https://cowflo.site.je",
+      repoUrl: "#",
+      thumbnailLabel: "POS System",
+      accent: "green",
+    },
     {
       title: "Orange Calculator",
       type: "Hours Calculator",

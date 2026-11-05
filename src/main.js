@@ -16,14 +16,61 @@ const state = {
   activeProject: projects[0],
   activeThumbnailIndex: 0,
   activeSection: "home",
-  scrollProgress: 0,
-  isTopbarPinned: false,
 };
 
-let sectionObserver;
 let thumbnailInterval;
+let revealObserver;
+let isScrollFrameQueued = false;
+
+// render() rebuilds the whole page, so what has already animated is remembered
+// here. Otherwise every click would replay every animation.
+const revealedKeys = new Set();
+
+const LIGHTBOX_INTERVAL = 4000;
+
+function lightboxIcon(paths) {
+  return `<svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${paths}</svg>`;
+}
+
+const LIGHTBOX_ICONS = {
+  close: lightboxIcon(`<path d="M6 6l12 12M18 6L6 18" />`),
+  previous: lightboxIcon(`<path d="M15 5l-7 7 7 7" />`),
+  next: lightboxIcon(`<path d="M9 5l7 7-7 7" />`),
+  pause: lightboxIcon(`<path d="M9 5v14M15 5v14" />`),
+  play: lightboxIcon(`<path d="M8 5l11 7-11 7z" />`),
+  expand: lightboxIcon(`<path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />`),
+};
 
 const TOOL_ICONS = {
+  python: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M12 4c-3 0-4 1-4 3v2h4.5v1H6.5C5 10 4 11 4 13s1 3 2.5 3H8v-2c0-1.4 1-2.5 2.5-2.5h3.5c1.2 0 2-.8 2-2V7c0-2-1-3-4-3Z" fill="none"></path>
+      <path d="M12 20c3 0 4-1 4-3v-2h-4.5v-1h6c1.500 0 2.500-1 2.500-3s-1-3-2.500-3H16v2c0 1.400-1 2.500-2.500 2.500H10c-1.200 0-2 .8-2 2V17c0 2 1 3 4 3Z" fill="none"></path>
+    </svg>
+  `,
+  render: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M6 19v-8a6 6 0 0 1 6-6h6" fill="none"></path>
+      <circle cx="15.5" cy="15.5" r="3"></circle>
+    </svg>
+  `,
+  neon: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <rect x="4" y="4" width="16" height="16" rx="3.5" fill="none"></rect>
+      <path d="M9 16V8l6 8V8" fill="none"></path>
+    </svg>
+  `,
+  supabase: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M13 4 5.5 14H12l-1 6 7.5-10H12l1-6Z"></path>
+    </svg>
+  `,
+  linkedin: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <rect x="4" y="4" width="16" height="16" rx="3" fill="none"></rect>
+      <path d="M8 10.5V16M8 7.6v.1M11.5 16v-5.5M11.5 13c0-1.6 1-2.6 2.3-2.6s2.2.9 2.2 2.6v3" fill="none"></path>
+    </svg>
+  `,
   react: `
     <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
       <circle cx="12" cy="12" r="1.8"></circle>
@@ -226,6 +273,19 @@ function renderSpotlightImages(project) {
   `).join("");
 }
 
+function renderSocialLinks() {
+  return `
+    <a class="btn btn-secondary" href="${escapeHtml(profile.linkedin)}" target="_blank" rel="noreferrer">
+      ${TOOL_ICONS.linkedin}
+      LinkedIn
+    </a>
+    <a class="btn btn-secondary" href="${escapeHtml(profile.github)}" target="_blank" rel="noreferrer">
+      ${TOOL_ICONS.github}
+      GitHub
+    </a>
+  `;
+}
+
 function ensureActiveProject() {
   const visibleProjects = filteredProjects();
   if (!visibleProjects.find((project) => project.title === state.activeProject.title)) {
@@ -234,6 +294,11 @@ function ensureActiveProject() {
 }
 
 function animateScrollTo(targetTop) {
+  if (window.matchMedia("(prefers-reduced-motion: reduce)").matches) {
+    window.scrollTo(0, targetTop);
+    return;
+  }
+
   const startTop = window.scrollY;
   const distance = targetTop - startTop;
   const duration = 720;
@@ -288,266 +353,239 @@ function render() {
   state.activeThumbnailIndex = Math.min(state.activeThumbnailIndex, getThumbnailCount(activeProject) - 1);
 
   root.innerHTML = `
-    <div
-      class="page-shell"
-      style="--night-progress: ${state.scrollProgress}; --night-shift: ${state.scrollProgress * 32}%"
-    >
-      <div class="orb orb-one"></div>
-      <div class="orb orb-two"></div>
-      <div class="orb orb-three"></div>
-
-      <header class="topbar${state.isTopbarPinned ? " is-pinned" : ""}">
-        <a class="brand" href="#home" data-section-link="home">${escapeHtml(profile.name)} | Web Developer</a>
-        <nav class="nav">
-          ${["home", "about", "experience", "projects", "contact"]
-            .map(
-              (item) => `
-                <a
-                  href="#${item}"
-                  class="nav-link${state.activeSection === item ? " active" : ""}"
-                  data-section-link="${item}"
-                >
-                  ${escapeHtml(item)}
-                </a>
-              `
-            )
-            .join("")}
-        </nav>
+    <div class="page-shell">
+      <header class="topbar">
+        <div class="container topbar-inner">
+          <a class="brand" href="#home" data-section-link="home">${escapeHtml(profile.name)}</a>
+          <nav class="nav" aria-label="Main">
+            ${["home", "about", "experience", "projects", "contact"]
+              .map(
+                (item) => `
+                  <a
+                    href="#${item}"
+                    class="nav-link${state.activeSection === item ? " active" : ""}"
+                    data-section-link="${item}"
+                  >
+                    ${escapeHtml(item)}
+                  </a>
+                `
+              )
+              .join("")}
+          </nav>
+        </div>
+        <div class="scroll-progress" aria-hidden="true"></div>
       </header>
 
-      <main class="layout">
-        <section id="home" class="hero panel">
-          <div class="hero-copy">
-            <span class="eyebrow"></span>
-            <h1>Designing bright, reliable web experiences that make work easier.</h1>
-            <p class="lede">${escapeHtml(profile.summary)}</p>
-            <div class="hero-actions">
-              <a class="btn btn-primary" href="#projects" data-section-link="projects">View My Work</a>
-              <a
-                class="btn btn-secondary"
-                href="./assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf"
-                target="_blank"
-                rel="noreferrer"
-              >
-                View Resume
-              </a>
-              <a class="btn btn-secondary" href="${escapeHtml(profile.linkedin)}" target="_blank" rel="noreferrer">
-                LinkedIn
-              </a>
-            </div>
-            <ul class="highlight-list">
-              ${profile.highlights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-            </ul>
-          </div>
+      <main>
+        <section id="home" class="hero on-dark">
+          <div class="container">
+            <div class="hero-grid">
+              <div class="hero-copy">
+                <span class="section-kicker" data-reveal="hero-kicker" style="--reveal-i: 0">${escapeHtml(profile.role)} &middot; ${escapeHtml(profile.location)}</span>
+                <h1 data-reveal="hero-title" style="--reveal-i: 1">${escapeHtml(profile.name)}</h1>
+                <p class="hero-tagline" data-reveal="hero-tagline" style="--reveal-i: 2">Designing <em>bright, reliable</em> web experiences that make work easier.</p>
+                <p class="lede" data-reveal="hero-lede" style="--reveal-i: 2">${escapeHtml(profile.summary)}</p>
+                <div class="hero-actions" data-reveal="hero-actions" style="--reveal-i: 3">
+                  <a class="btn btn-primary" href="#projects" data-section-link="projects">View My Work</a>
+                  <a
+                    class="btn btn-secondary"
+                    href="./assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf"
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    View Resume
+                  </a>
+                  ${renderSocialLinks()}
+                </div>
+                <ul class="highlight-list" data-reveal="hero-highlights" style="--reveal-i: 4">
+                  ${profile.highlights.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                </ul>
+              </div>
 
-          <aside class="hero-card">
-            <div class="hero-card-header">
-              <span class="status-dot"></span>
-              <p>Currently building user-focused internal systems</p>
+              <aside class="hero-card" data-reveal="hero-photo" style="--reveal-i: 2">
+                <div class="photo-frame">
+                  <img src="./assets/rica_pic.jpg" alt="Portrait of Rica Mae Pintoy" class="about-photo" />
+                </div>
+                <blockquote class="hero-quote">“With great power comes great responsibility.”</blockquote>
+              </aside>
             </div>
+
             <div class="stat-grid">
               ${stats
                 .map(
-                  (stat) => `
-                    <article class="stat-tile">
-                      <strong>${escapeHtml(stat.value)}</strong>
+                  (stat, statIndex) => `
+                    <article class="stat-tile" data-reveal="stat:${escapeHtml(stat.label)}" style="--reveal-i: ${statIndex}">
+                      <strong data-count>${escapeHtml(stat.value)}</strong>
                       <span>${escapeHtml(stat.label)}</span>
                     </article>
                   `
                 )
                 .join("")}
             </div>
-          </aside>
+          </div>
         </section>
 
-        <section id="about" class="section-grid">
-          <article class="panel about-card">
-            <div class="about-intro">
-              <div class="about-photo-box" aria-label="2x2 picture placeholder">
-                <div class="photo-frame">
-                  <img src="./assets/rica_pic.jpg" alt="Rica Mae Pintoy portrait" class="about-photo" />
-                </div>
-              </div>
-              <div>
-                <div class="section-heading">
-                  <span class="section-kicker">About Me</span>
-                  <h2>Technical depth with a calm, practical approach.</h2>
-                </div>
-              </div>
-            </div>
-            <p>
-              I build responsive applications, integrate APIs, and turn complex business workflows into clean,
-              approachable interfaces. My background spans frontend development, backend services, data-driven systems,
-              and collaboration with cross-functional teams.
-            </p>
-            <div class="mini-profile">
-              <div>
-                <span>Location</span>
-                <strong>${escapeHtml(profile.location)}</strong>
-              </div>
-              <div>
-                <span>Education</span>
-                <strong>${escapeHtml(education.degree)}</strong>
-              </div>
-              <div>
-                <span>Recognition</span>
-                <strong>${escapeHtml(education.distinctions.join(" • "))}</strong>
-              </div>
-            </div>
-          </article>
-
-          <article class="panel skills-card">
-            <div class="section-heading">
-              <span class="section-kicker">Skills</span>
-              <h2>Tools I work with</h2>
-            </div>
-            <div class="skill-groups">
-              ${skills
-                .map(
-                  (group) => `
-                    <section class="skill-group">
-                      <h3>${escapeHtml(group.title)}</h3>
-                      <div class="tag-row">
-                        ${group.items.map((item) => renderSkillTag(item)).join("")}
-                      </div>
-                    </section>
-                  `
-                )
-                .join("")}
-            </div>
-          </article>
-        </section>
-
-        <section id="experience" class="section-grid">
-          <article class="panel timeline-card">
-            <div class="section-heading">
-              <span class="section-kicker">Experience</span>
-              <h2>Hands-on work across enterprise systems</h2>
-            </div>
-            <div class="timeline">
-              ${experience
-                .map(
-                  (job) => `
-                    <article class="timeline-item">
-                      <div class="timeline-marker"></div>
-                      <div class="timeline-content">
-                        <div class="timeline-topline">
-                          <h3>${escapeHtml(job.role)}</h3>
-                          <span>${escapeHtml(job.period)}</span>
-                        </div>
-                        <p class="timeline-company">${escapeHtml(job.company)} • ${escapeHtml(job.location)}</p>
-                        <ul class="detail-list">
-                          ${job.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
-                        </ul>
-                      </div>
-                    </article>
-                  `
-                )
-                .join("")}
-            </div>
-          </article>
-
-          <article class="panel side-stack">
-            <section class="stack-block">
+        <section id="about" class="section">
+          <div class="container section-grid">
+            <article class="panel about-card" data-reveal="about" style="--reveal-i: 0">
               <div class="section-heading">
+                <span class="section-kicker">About Me</span>
+                <h2>Technical depth with a calm, practical approach.</h2>
+              </div>
+              <p>
+                I build responsive applications, integrate APIs, and turn complex business workflows into clean,
+                approachable interfaces. My background spans frontend development, backend services, data-driven systems,
+                and collaboration with cross-functional teams.
+              </p>
+              <div class="mini-profile">
+                <div>
+                  <span>Location</span>
+                  <strong>${escapeHtml(profile.location)}</strong>
+                </div>
+                <div>
+                  <span>Education</span>
+                  <strong>${escapeHtml(education.degree)}</strong>
+                </div>
+                <div>
+                  <span>Recognition</span>
+                  <strong>${escapeHtml(education.distinctions.join(" • "))}</strong>
+                </div>
+              </div>
+            </article>
+
+            <article class="panel skills-card" data-reveal="skills" style="--reveal-i: 1">
+              <div class="section-heading">
+                <span class="section-kicker">Skills</span>
+                <h2>Tools I work with</h2>
+              </div>
+              <div class="skill-groups">
+                ${skills
+                  .map(
+                    (group) => `
+                      <section class="skill-group">
+                        <h3>${escapeHtml(group.title)}</h3>
+                        <div class="tag-row">
+                          ${group.items.map((item) => renderSkillTag(item)).join("")}
+                        </div>
+                      </section>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </article>
+          </div>
+        </section>
+
+        <section id="experience" class="section section-alt">
+          <div class="container experience-grid">
+            <article class="timeline-card">
+              <div class="section-heading" data-reveal="experience-heading" style="--reveal-i: 0">
+                <span class="section-kicker">Experience</span>
+                <h2>Hands-on work across enterprise systems</h2>
+              </div>
+              <div class="timeline">
+                <div class="timeline-progress" aria-hidden="true"></div>
+                ${experience
+                  .map(
+                    (job) => `
+                      <article class="timeline-item" data-reveal="job:${escapeHtml(job.role)}">
+                        <div class="timeline-marker"></div>
+                        <div class="timeline-content">
+                          <div class="timeline-topline">
+                            <h3>${escapeHtml(job.role)}</h3>
+                            <span>${escapeHtml(job.period)}</span>
+                          </div>
+                          <p class="timeline-company">${escapeHtml(job.company)} • ${escapeHtml(job.location)}</p>
+                          <ul class="detail-list">
+                            ${job.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
+                          </ul>
+                        </div>
+                      </article>
+                    `
+                  )
+                  .join("")}
+              </div>
+            </article>
+
+            <article class="panel side-stack" data-reveal="side-stack" style="--reveal-i: 1">
+              <section class="stack-block">
                 <span class="section-kicker">Education</span>
-                <h2>${escapeHtml(education.school)}</h2>
-              </div>
-              <p>${escapeHtml(education.degree)}</p>
-              <p class="muted">${escapeHtml(education.period)}</p>
-              <div class="tag-row">
-                ${education.distinctions.map((item) => `<span class="tag soft">${escapeHtml(item)}</span>`).join("")}
-              </div>
-            </section>
+                <h3>${escapeHtml(education.school)}</h3>
+                <p>${escapeHtml(education.degree)}</p>
+                <p class="muted">${escapeHtml(education.period)}</p>
+                <div class="tag-row">
+                  ${education.distinctions.map((item) => `<span class="tag soft">${escapeHtml(item)}</span>`).join("")}
+                </div>
+              </section>
 
-            <section class="stack-block">
-              <div class="section-heading">
+              <section class="stack-block">
                 <span class="section-kicker">Certifications</span>
-                <h2>Learning & Growth</h2>
-              </div>
-              <ul class="detail-list compact">
-                ${certifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-              </ul>
-            </section>
+                <h3>Learning &amp; Growth</h3>
+                <ul class="detail-list compact">
+                  ${certifications.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                </ul>
+              </section>
 
-            <section class="stack-block">
-              <div class="section-heading">
+              <section class="stack-block">
                 <span class="section-kicker">Awards</span>
-                <h2>Recognition</h2>
-              </div>
-              <ul class="detail-list compact">
-                ${awards.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
-              </ul>
-            </section>
-          </article>
+                <h3>Recognition</h3>
+                <ul class="detail-list compact">
+                  ${awards.map((item) => `<li>${escapeHtml(item)}</li>`).join("")}
+                </ul>
+              </section>
+            </article>
+          </div>
         </section>
 
-        <section id="projects" class="panel projects-panel">
-          <div class="section-heading split">
-            <div>
-              <span class="section-kicker">Portfolio</span>
-              <h2>Website and system showcase</h2>
+        <section id="projects" class="section">
+          <div class="container">
+            <div class="section-heading split" data-reveal="projects-heading" style="--reveal-i: 0">
+              <div>
+                <span class="section-kicker">Portfolio</span>
+                <h2>Website and system showcase</h2>
+              </div>
+              <p class="muted">Select a project to preview it, then click the image to see it larger.</p>
             </div>
-            <p class="muted">
-              Click a project card to preview details. The gallery is ready for live website links and thumbnail updates.
-            </p>
-          </div>
 
-          <div class="filter-row">
-            ${projectFilters
-              .map(
-                (filter) => `
-                  <button
-                    class="filter-chip${state.activeFilter === filter ? " active" : ""}"
-                    data-filter="${escapeHtml(filter)}"
-                  >
-                    ${escapeHtml(filter)}
-                  </button>
-                `
-              )
-              .join("")}
-          </div>
-
-          <div class="project-layout">
-            <div class="project-grid">
-              ${currentProjects
+            <div class="filter-row" data-reveal="projects-filters" style="--reveal-i: 1">
+              ${projectFilters
                 .map(
-                  (project) => `
+                  (filter) => `
                     <button
-                      class="project-card${activeProject.title === project.title ? " active" : ""}"
-                      data-project="${escapeHtml(project.title)}"
+                      class="filter-chip${state.activeFilter === filter ? " active" : ""}"
+                      data-filter="${escapeHtml(filter)}"
                     >
-                      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
-                        ${renderThumbnailImage(project, "project-thumb-image", 1)}
-                        <span>${escapeHtml(project.thumbnailLabel)}</span>
-                      </div>
-                      <div class="project-copy">
-                        <div class="project-topline">
-                          <h3>${escapeHtml(project.title)}</h3>
-                          <span>${escapeHtml(project.type)}</span>
-                        </div>
-                        <p>${escapeHtml(project.blurb)}</p>
-                      </div>
+                      ${escapeHtml(filter)}
                     </button>
                   `
                 )
                 .join("")}
             </div>
 
-            <aside class="project-spotlight">
+            <div class="panel project-spotlight" data-reveal="projects-spotlight" style="--reveal-i: 2">
               <div class="spotlight-visual ${escapeHtml(activeProject.accent)}${hasThumbnail(activeProject) ? " has-thumbnail" : ""}">
                 ${renderSpotlightImages(activeProject)}
-                <div class="browser-chrome">
-                  <span></span>
-                  <span></span>
-                  <span></span>
-                </div>
-                <div class="spotlight-label">${escapeHtml(activeProject.thumbnailLabel)}</div>
-                <div class="spotlight-title">${escapeHtml(activeProject.title)}</div>
+                <div class="spotlight-title">${escapeHtml(activeProject.thumbnailLabel)}</div>
+                ${
+                  hasThumbnail(activeProject)
+                    ? `
+                      <button
+                        type="button"
+                        class="spotlight-open"
+                        aria-label="View larger screenshots of ${escapeHtml(activeProject.title)}"
+                      >
+                        <span class="spotlight-open-hint">
+                          ${LIGHTBOX_ICONS.expand}
+                          View larger
+                        </span>
+                      </button>
+                    `
+                    : ""
+                }
               </div>
 
               <div class="spotlight-content">
-                <span class="section-kicker">${escapeHtml(activeProject.category)}</span>
+                <span class="section-kicker">${escapeHtml(activeProject.category)} &middot; ${escapeHtml(activeProject.type)}</span>
                 <h3>${escapeHtml(activeProject.title)}</h3>
                 <p>${escapeHtml(activeProject.blurb)}</p>
                 <p class="impact">${escapeHtml(activeProject.impact)}</p>
@@ -581,23 +619,48 @@ function render() {
                     : ""
                 }
               </div>
-            </aside>
+            </div>
+
+            <div class="project-grid">
+              ${currentProjects
+                .map(
+                  (project, cardIndex) => `
+                    <button
+                      class="project-card${activeProject.title === project.title ? " active" : ""}"
+                      data-project="${escapeHtml(project.title)}"
+                      data-reveal="card:${escapeHtml(project.title)}"
+                      style="--reveal-i: ${cardIndex % 3}"
+                    >
+                      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
+                        ${renderThumbnailImage(project, "project-thumb-image", 1)}
+                        <span>${escapeHtml(project.thumbnailLabel)}</span>
+                      </div>
+                      <div class="project-copy">
+                        <span class="project-type">${escapeHtml(project.type)}</span>
+                        <h3>${escapeHtml(project.title)}</h3>
+                        <p>${escapeHtml(project.blurb)}</p>
+                      </div>
+                    </button>
+                  `
+                )
+                .join("")}
+            </div>
           </div>
         </section>
 
-        <section id="contact" class="panel contact-panel">
-          <div class="section-heading">
-            <span class="section-kicker">Contact</span>
-            <h2>Let's build something useful and well-crafted.</h2>
-          </div>
-          <p class="contact-copy">
-            I'm open to web development opportunities where I can contribute strong frontend work, dependable backend
-            logic, and thoughtful collaboration.
-          </p>
-          <div class="contact-links">
-            <a href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>
-            <a href="tel:${escapeHtml(profile.phone.replace(/\s+/g, ""))}">${escapeHtml(profile.phone)}</a>
-            <a href="${escapeHtml(profile.linkedin)}" target="_blank" rel="noreferrer">LinkedIn Profile</a>
+        <section id="contact" class="contact-panel on-dark">
+          <div class="container">
+            <span class="section-kicker" data-reveal="contact-kicker" style="--reveal-i: 0">Contact</span>
+            <h2 data-reveal="contact-title" style="--reveal-i: 1">Let's build something useful and well-crafted.</h2>
+            <p class="contact-copy" data-reveal="contact-copy" style="--reveal-i: 2">
+              I'm open to web development opportunities where I can contribute strong frontend work, dependable backend
+              logic, and thoughtful collaboration.
+            </p>
+            <div class="contact-links" data-reveal="contact-links" style="--reveal-i: 3">
+              <a class="btn btn-primary" href="mailto:${escapeHtml(profile.email)}">${escapeHtml(profile.email)}</a>
+              <a class="btn btn-secondary" href="tel:${escapeHtml(profile.phone.replace(/\s+/g, ""))}">${escapeHtml(profile.phone)}</a>
+              ${renderSocialLinks()}
+            </div>
           </div>
         </section>
       </main>
@@ -605,7 +668,9 @@ function render() {
   `;
 
   bindEvents();
-  refreshSectionObserver();
+  setupReveal();
+  updateActiveSection();
+  updateScrollEffects();
   setupThumbnailSlideshow();
 }
 
@@ -621,7 +686,9 @@ function bindEvents() {
       state.activeFilter = button.dataset.filter;
       state.activeThumbnailIndex = 0;
       ensureActiveProject();
+      forgetRevealedCards();
       render();
+      animateSpotlightChange();
     });
   });
 
@@ -632,9 +699,240 @@ function bindEvents() {
       state.activeProject = project;
       state.activeThumbnailIndex = 0;
       render();
+      animateSpotlightChange();
       scrollToElement(".project-spotlight");
     });
   });
+
+  const spotlightOpen = document.querySelector(".spotlight-open");
+  if (spotlightOpen) {
+    spotlightOpen.addEventListener("click", () => {
+      openLightbox(state.activeProject, state.activeThumbnailIndex);
+    });
+  }
+}
+
+// The lightbox lives on <body>, outside #root, because render() replaces all of
+// #root and can run at any time (for example from the section observer).
+function openLightbox(project, startIndex) {
+  const count = getThumbnailCount(project);
+  const hasMultiple = count > 1;
+  const reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const dialog = document.createElement("dialog");
+  dialog.className = "lightbox";
+  dialog.setAttribute("aria-label", `${project.title} screenshots`);
+  dialog.innerHTML = `
+    <header class="lightbox-bar">
+      <div class="lightbox-caption">
+        <strong>${escapeHtml(project.title)}</strong>
+        ${hasMultiple ? `<span class="lightbox-counter"></span>` : ""}
+      </div>
+      <div class="lightbox-actions">
+        ${
+          hasMultiple
+            ? `<button type="button" class="lightbox-control lightbox-toggle"></button>`
+            : ""
+        }
+        <button type="button" class="lightbox-control lightbox-close" aria-label="Close" autofocus>
+          ${LIGHTBOX_ICONS.close}
+        </button>
+      </div>
+    </header>
+
+    <div class="lightbox-stage">
+      ${Array.from({ length: count }, (_, imageIndex) => `
+        <div class="lightbox-slide">
+          <img
+            src="${escapeHtml(getThumbnailSrc(project, imageIndex + 1))}"
+            alt="${escapeHtml(project.title)} screenshot ${imageIndex + 1} of ${count}"
+            draggable="false"
+          />
+        </div>
+      `).join("")}
+      ${
+        hasMultiple
+          ? `
+            <button type="button" class="lightbox-control lightbox-arrow is-prev" aria-label="Previous screenshot">
+              ${LIGHTBOX_ICONS.previous}
+            </button>
+            <button type="button" class="lightbox-control lightbox-arrow is-next" aria-label="Next screenshot">
+              ${LIGHTBOX_ICONS.next}
+            </button>
+          `
+          : ""
+      }
+    </div>
+
+    ${
+      hasMultiple
+        ? `
+          <div class="lightbox-thumbs">
+            ${Array.from({ length: count }, (_, imageIndex) => `
+              <button type="button" class="lightbox-thumb" aria-label="Show screenshot ${imageIndex + 1} of ${count}">
+                <img src="${escapeHtml(getThumbnailSrc(project, imageIndex + 1))}" alt="" draggable="false" />
+              </button>
+            `).join("")}
+          </div>
+        `
+        : ""
+    }
+  `;
+
+  const slides = Array.from(dialog.querySelectorAll(".lightbox-slide"));
+  const thumbs = Array.from(dialog.querySelectorAll(".lightbox-thumb"));
+  const counter = dialog.querySelector(".lightbox-counter");
+  const toggle = dialog.querySelector(".lightbox-toggle");
+  const stage = dialog.querySelector(".lightbox-stage");
+
+  let index = startIndex;
+  let isPlaying = hasMultiple && !reduceMotion;
+  let timer = null;
+  let swipeStartX = null;
+  let didSwipe = false;
+
+  function syncIndicators() {
+    slides.forEach((slide, slideIndex) => {
+      slide.setAttribute("aria-hidden", String(slideIndex !== index));
+    });
+    thumbs.forEach((thumb, thumbIndex) => {
+      const isCurrent = thumbIndex === index;
+      thumb.classList.toggle("is-active", isCurrent);
+      if (isCurrent) {
+        thumb.setAttribute("aria-current", "true");
+        thumb.scrollIntoView({ block: "nearest", inline: "center" });
+      } else {
+        thumb.removeAttribute("aria-current");
+      }
+    });
+    if (counter) counter.textContent = `${index + 1} / ${count}`;
+  }
+
+  // Only the outgoing and incoming slides move, so wrapping from the last image
+  // to the first slides one step instead of rewinding through the whole set.
+  function slideTo(nextIndex, direction) {
+    if (nextIndex === index) return;
+
+    const incoming = slides[nextIndex];
+    incoming.style.transition = "none";
+    incoming.style.transform = `translateX(${direction * 100}%)`;
+    void incoming.offsetWidth;
+    incoming.style.transition = "";
+    incoming.style.transform = "translateX(0)";
+    slides[index].style.transform = `translateX(${-direction * 100}%)`;
+
+    index = nextIndex;
+    syncIndicators();
+  }
+
+  function startTimer() {
+    window.clearInterval(timer);
+    timer = isPlaying
+      ? window.setInterval(() => slideTo((index + 1) % count, 1), LIGHTBOX_INTERVAL)
+      : null;
+  }
+
+  function step(direction) {
+    if (!hasMultiple) return;
+    slideTo((index + direction + count) % count, direction);
+    startTimer();
+  }
+
+  function syncToggle() {
+    if (!toggle) return;
+    toggle.innerHTML = isPlaying ? LIGHTBOX_ICONS.pause : LIGHTBOX_ICONS.play;
+    toggle.setAttribute("aria-label", isPlaying ? "Pause slideshow" : "Play slideshow");
+    // Announce image changes only when they come from the viewer, not the timer.
+    if (counter) counter.setAttribute("aria-live", isPlaying ? "off" : "polite");
+  }
+
+  slides.forEach((slide, slideIndex) => {
+    slide.style.transform = slideIndex === index ? "translateX(0)" : "translateX(100%)";
+  });
+
+  dialog.querySelector(".lightbox-close").addEventListener("click", () => dialog.close());
+
+  if (hasMultiple) {
+    dialog.querySelector(".is-prev").addEventListener("click", () => step(-1));
+    dialog.querySelector(".is-next").addEventListener("click", () => step(1));
+
+    toggle.addEventListener("click", () => {
+      isPlaying = !isPlaying;
+      syncToggle();
+      startTimer();
+    });
+
+    thumbs.forEach((thumb, thumbIndex) => {
+      thumb.addEventListener("click", () => {
+        slideTo(thumbIndex, thumbIndex > index ? 1 : -1);
+        startTimer();
+      });
+    });
+
+    stage.addEventListener("pointerdown", (event) => {
+      didSwipe = false;
+      swipeStartX = event.target.closest("button") ? null : event.clientX;
+    });
+
+    stage.addEventListener("pointerup", (event) => {
+      if (swipeStartX === null) return;
+      const distance = event.clientX - swipeStartX;
+      swipeStartX = null;
+      if (Math.abs(distance) < 50) return;
+      didSwipe = true;
+      step(distance < 0 ? 1 : -1);
+    });
+
+    stage.addEventListener("pointercancel", () => {
+      swipeStartX = null;
+    });
+  }
+
+  dialog.addEventListener("keydown", (event) => {
+    if (event.key === "ArrowLeft") step(-1);
+    if (event.key === "ArrowRight") step(1);
+  });
+
+  // Clicking the empty area around the image closes the viewer.
+  dialog.addEventListener("click", (event) => {
+    if (didSwipe) {
+      didSwipe = false;
+      return;
+    }
+    if (event.target.matches(".lightbox, .lightbox-bar, .lightbox-stage, .lightbox-slide, .lightbox-thumbs")) {
+      dialog.close();
+    }
+  });
+
+  dialog.addEventListener("close", () => {
+    window.clearInterval(timer);
+    dialog.remove();
+    document.documentElement.classList.remove("lightbox-open");
+    document.body.style.paddingRight = "";
+
+    // Carry on the page's slideshow from the image the viewer stopped on.
+    state.activeThumbnailIndex = index;
+    document.querySelectorAll(".spotlight-image").forEach((image, imageIndex) => {
+      image.classList.toggle("is-active", imageIndex === index);
+    });
+    setupThumbnailSlideshow();
+
+    const opener = document.querySelector(".spotlight-open");
+    if (opener) opener.focus({ preventScroll: true });
+  });
+
+  // Pause the page's slideshow, and fill the scrollbar's space so the page behind doesn't shift.
+  window.clearInterval(thumbnailInterval);
+  thumbnailInterval = null;
+  const scrollbarWidth = window.innerWidth - document.documentElement.clientWidth;
+  document.body.style.paddingRight = `${scrollbarWidth}px`;
+  document.documentElement.classList.add("lightbox-open");
+
+  document.body.appendChild(dialog);
+  dialog.showModal();
+  syncIndicators();
+  syncToggle();
+  startTimer();
 }
 
 function setupThumbnailSlideshow() {
@@ -656,55 +954,133 @@ function setupThumbnailSlideshow() {
   }, 2600);
 }
 
-function refreshSectionObserver() {
-  const sections = ["home", "about", "experience", "projects", "contact"];
+function prefersReducedMotion() {
+  return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+}
 
-  if (sectionObserver) {
-    sectionObserver.disconnect();
-  }
+function setupReveal() {
+  if (revealObserver) revealObserver.disconnect();
 
-  sectionObserver = new IntersectionObserver(
+  revealObserver = new IntersectionObserver(
     (entries) => {
-      const visible = entries
-        .filter((entry) => entry.isIntersecting)
-        .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
-
-      if (visible && visible.target && visible.target.id && state.activeSection !== visible.target.id) {
-        state.activeSection = visible.target.id;
-        render();
-      }
+      entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        revealObserver.unobserve(entry.target);
+        revealedKeys.add(entry.target.dataset.reveal);
+        entry.target.classList.add("is-visible");
+        entry.target.querySelectorAll("[data-count]").forEach(countUp);
+      });
     },
-    { threshold: [0.2, 0.45, 0.7] }
+    { threshold: 0.08, rootMargin: "0px 0px -6% 0px" }
   );
 
-  sections.forEach((id) => {
-    const node = document.getElementById(id);
-    if (node) sectionObserver.observe(node);
+  const skipAnimation = prefersReducedMotion();
+  document.querySelectorAll("[data-reveal]").forEach((node) => {
+    if (skipAnimation || revealedKeys.has(node.dataset.reveal)) {
+      node.classList.add("is-seen");
+    } else {
+      revealObserver.observe(node);
+    }
   });
 }
 
-function setupScrollTracking() {
-  function updateScrollProgress() {
-    const scrollableHeight = document.documentElement.scrollHeight - window.innerHeight;
-    state.scrollProgress = scrollableHeight <= 0 ? 0 : Math.min(window.scrollY / scrollableHeight, 1);
-    state.isTopbarPinned = window.scrollY > 24;
-    const shell = document.querySelector(".page-shell");
-    const topbar = document.querySelector(".topbar");
+function forgetRevealedCards() {
+  revealedKeys.forEach((key) => {
+    if (key.startsWith("card:")) revealedKeys.delete(key);
+  });
+}
 
-    if (shell) {
-      shell.style.setProperty("--night-progress", state.scrollProgress);
-      shell.style.setProperty("--night-shift", `${state.scrollProgress * 32}%`);
-    }
+function animateSpotlightChange() {
+  if (prefersReducedMotion()) return;
+  const spotlight = document.querySelector(".project-spotlight");
+  if (spotlight) spotlight.classList.add("is-switching");
+}
 
-    if (topbar) {
-      topbar.classList.toggle("is-pinned", state.isTopbarPinned);
+function countUp(node) {
+  const finalText = node.textContent;
+  const match = finalText.match(/^(\d+)(.*)$/);
+  if (!match) return;
+
+  const target = Number(match[1]);
+  const suffix = match[2];
+  const duration = 1400;
+  const startTime = performance.now();
+
+  function step(currentTime) {
+    if (!node.isConnected) return;
+    const progress = Math.min((currentTime - startTime) / duration, 1);
+    const eased = 1 - Math.pow(1 - progress, 3);
+
+    if (progress < 1) {
+      node.textContent = `${Math.round(target * eased)}${suffix}`;
+      window.requestAnimationFrame(step);
+    } else {
+      node.textContent = finalText;
     }
   }
 
-  updateScrollProgress();
-  window.addEventListener("scroll", updateScrollProgress, { passive: true });
-  window.addEventListener("resize", updateScrollProgress);
+  node.textContent = `0${suffix}`;
+  window.requestAnimationFrame(step);
+}
+
+function updateScrollEffects() {
+  const bar = document.querySelector(".scroll-progress");
+  if (bar) {
+    const scrollable = document.documentElement.scrollHeight - window.innerHeight;
+    const progress = scrollable > 0 ? Math.min(window.scrollY / scrollable, 1) : 0;
+    bar.style.transform = `scaleX(${progress})`;
+  }
+
+  // The timeline fills up to a line 60% of the way down the screen.
+  const timeline = document.querySelector(".timeline");
+  const fill = document.querySelector(".timeline-progress");
+  if (timeline && fill) {
+    const fillLine = window.innerHeight * 0.6;
+    const rect = timeline.getBoundingClientRect();
+    const filled = Math.max(0, Math.min((fillLine - rect.top) / rect.height, 1));
+    fill.style.transform = `scaleY(${filled})`;
+    document.querySelectorAll(".timeline-marker").forEach((marker) => {
+      marker.classList.toggle("is-passed", marker.getBoundingClientRect().top <= fillLine);
+    });
+  }
+
+  // A gentle drift on the hero photo, only where it sits beside the headline.
+  const photo = document.querySelector(".photo-frame");
+  if (photo) {
+    const canDrift = !prefersReducedMotion() && window.matchMedia("(min-width: 981px)").matches;
+    photo.style.transform = canDrift ? `translateY(${window.scrollY * -0.05}px)` : "";
+  }
+}
+
+function handleScroll() {
+  if (isScrollFrameQueued) return;
+  isScrollFrameQueued = true;
+  window.requestAnimationFrame(() => {
+    isScrollFrameQueued = false;
+    updateActiveSection();
+    updateScrollEffects();
+  });
+}
+
+function updateActiveSection() {
+  const sections = ["home", "about", "experience", "projects", "contact"];
+  const readingLine = window.innerHeight * 0.4;
+  const isAtBottom = window.scrollY + window.innerHeight >= document.documentElement.scrollHeight - 2;
+
+  let current = sections[0];
+  sections.forEach((id) => {
+    const node = document.getElementById(id);
+    if (node && node.getBoundingClientRect().top <= readingLine) current = id;
+  });
+
+  // The last section can be too short to ever reach the reading line.
+  state.activeSection = isAtBottom ? sections[sections.length - 1] : current;
+
+  document.querySelectorAll(".nav-link").forEach((link) => {
+    link.classList.toggle("active", link.dataset.sectionLink === state.activeSection);
+  });
 }
 
 render();
-setupScrollTracking();
+window.addEventListener("scroll", handleScroll, { passive: true });
+window.addEventListener("resize", handleScroll);

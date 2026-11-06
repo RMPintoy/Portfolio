@@ -433,6 +433,10 @@ h3 {
   border-radius: var(--radius-lg);
   background: var(--surface);
   box-shadow: 12px 12px 0 var(--accent);
+  /* Double-click and double-tap make the photo pout, so don't select text or zoom. */
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
 }
 
 .about-photo {

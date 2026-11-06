@@ -47,12 +47,19 @@ try {
       default { "application/octet-stream" }
     }
 
-    $bytes = [IO.File]::ReadAllBytes($filePath)
-    $context.Response.StatusCode = 200
-    $context.Response.ContentType = $contentType
-    $context.Response.ContentLength64 = $bytes.Length
-    $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
-    $context.Response.OutputStream.Close()
+    # A browser can cancel a download partway (a reload, or leaving the page).
+    # Skip that one request instead of letting it stop the whole server.
+    try {
+      $bytes = [IO.File]::ReadAllBytes($filePath)
+      $context.Response.StatusCode = 200
+      $context.Response.ContentType = $contentType
+      $context.Response.ContentLength64 = $bytes.Length
+      $context.Response.OutputStream.Write($bytes, 0, $bytes.Length)
+    } catch {
+      Write-Host "Skipped a cancelled request for /$requestPath"
+    } finally {
+      try { $context.Response.OutputStream.Close() } catch { }
+    }
   }
 } finally {
   $listener.Stop()

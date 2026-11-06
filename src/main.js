@@ -404,7 +404,13 @@ function render() {
 
               <aside class="hero-card" data-reveal="hero-photo" style="--reveal-i: 2">
                 <div class="photo-frame">
-                  <img src="./assets/rica_pic.jpg" alt="Portrait of Rica Mae Pintoy" class="about-photo" />
+                  <img
+                    src="${LOOK_IMAGES[lookState.current]}"
+                    data-look="${lookState.current}"
+                    alt="Portrait of Rica Mae Pintoy"
+                    class="about-photo"
+                    draggable="false"
+                  />
                 </div>
                 <blockquote class="hero-quote">“With great power comes great responsibility.”</blockquote>
               </aside>
@@ -1052,6 +1058,164 @@ function updateScrollEffects() {
   }
 }
 
+// The hero photo looks toward the mouse, down or up while scrolling, back at the
+// viewer when scrolling stops, pulls a silly face for 1 second on a click, and
+// pouts for 1 second on a double-click.
+const LOOK_IMAGES = {
+  front: "./assets/rica_pic.jpg",
+  N: "./assets/look_N.jpg",
+  NE: "./assets/look_NE.jpg",
+  E: "./assets/look_E.jpg",
+  SE: "./assets/look_SE.jpg",
+  S: "./assets/look_S.jpg",
+  SW: "./assets/look_SW.jpg",
+  W: "./assets/look_W.jpg",
+  NW: "./assets/look_NW.jpg",
+  pout: "./assets/look_pout.jpg",
+  silly1: "./assets/look_silly1.jpg",
+  silly2: "./assets/look_silly2.jpg",
+  silly3: "./assets/look_silly3.jpg",
+};
+
+// The look_* files are named from Rica's point of view, so left and right are
+// mirrored compared with the screen: look_E shows her looking at the screen's left.
+const SCREEN_TO_LOOK = { E: "W", SE: "SW", S: "S", SW: "SE", W: "E", NW: "NE", N: "N", NE: "NW" };
+const SCREEN_DIRECTIONS = ["E", "SE", "S", "SW", "W", "NW", "N", "NE"];
+const EXPRESSION_DURATION = 1000;
+const SILLY_LOOKS = ["silly1", "silly2", "silly3"];
+const SCROLL_SETTLE_DELAY = 250;
+// A click waits this long to see whether it becomes a double-click.
+const DOUBLE_CLICK_WINDOW = 300;
+
+const readyLooks = new Set(["front"]);
+const lookState = {
+  current: "front",
+  isScrolling: false,
+  isHoldingExpression: false,
+  scrollTimer: null,
+  expressionTimer: null,
+  clickTimer: null,
+  nextSilly: 0,
+  lastScrollY: window.scrollY,
+  pointer: null,
+  isPointerFrameQueued: false,
+};
+
+function preloadLooks() {
+  Object.entries(LOOK_IMAGES).forEach(([name, src]) => {
+    if (readyLooks.has(name)) return;
+    const image = new Image();
+    image.src = src;
+    image
+      .decode()
+      .then(() => readyLooks.add(name))
+      .catch(() => {});
+  });
+}
+
+function showLook(name) {
+  // Until a photo has downloaded, keep the current one rather than flash a blank frame.
+  if (!readyLooks.has(name)) return;
+  lookState.current = name;
+  const photo = document.querySelector(".about-photo");
+  if (photo && photo.dataset.look !== name) {
+    photo.src = LOOK_IMAGES[name];
+    photo.dataset.look = name;
+  }
+}
+
+function lookTowardPointer() {
+  lookState.isPointerFrameQueued = false;
+  if (lookState.isHoldingExpression || lookState.isScrolling || !lookState.pointer) return;
+
+  const frame = document.querySelector(".photo-frame");
+  if (!frame) return;
+
+  const rect = frame.getBoundingClientRect();
+  const dx = lookState.pointer.x - (rect.left + rect.width / 2);
+  const dy = lookState.pointer.y - (rect.top + rect.height / 2);
+
+  // Over the photo itself, she looks straight at the viewer.
+  if (Math.hypot(dx, dy) < rect.width / 2) {
+    showLook("front");
+    return;
+  }
+
+  const sector = (Math.round(Math.atan2(dy, dx) / (Math.PI / 4)) + 8) % 8;
+  showLook(SCREEN_TO_LOOK[SCREEN_DIRECTIONS[sector]]);
+}
+
+function handleLookPointerMove(event) {
+  if (event.pointerType === "touch") return;
+  lookState.pointer = { x: event.clientX, y: event.clientY };
+  if (lookState.isPointerFrameQueued) return;
+  lookState.isPointerFrameQueued = true;
+  window.requestAnimationFrame(lookTowardPointer);
+}
+
+function handleLookPointerLeave() {
+  lookState.pointer = null;
+  if (!lookState.isHoldingExpression && !lookState.isScrolling) showLook("front");
+}
+
+function handleLookScroll() {
+  const scrollY = window.scrollY;
+  if (scrollY === lookState.lastScrollY) return;
+  const direction = scrollY > lookState.lastScrollY ? "S" : "N";
+  lookState.lastScrollY = scrollY;
+
+  lookState.isScrolling = true;
+  if (!lookState.isHoldingExpression) showLook(direction);
+
+  window.clearTimeout(lookState.scrollTimer);
+  lookState.scrollTimer = window.setTimeout(() => {
+    lookState.isScrolling = false;
+    if (!lookState.isHoldingExpression) showLook("front");
+  }, SCROLL_SETTLE_DELAY);
+}
+
+// Shows an expression for 1 second; mouse and scroll can't change it meanwhile.
+function holdExpression(name) {
+  if (!readyLooks.has(name)) return;
+  window.clearTimeout(lookState.expressionTimer);
+  showLook(name);
+  lookState.isHoldingExpression = true;
+  lookState.expressionTimer = window.setTimeout(() => {
+    lookState.isHoldingExpression = false;
+    showLook("front");
+  }, EXPRESSION_DURATION);
+}
+
+// Rotates through the silly faces so the same one never shows twice in a row.
+function showNextSillyLook() {
+  for (let offset = 0; offset < SILLY_LOOKS.length; offset++) {
+    const index = (lookState.nextSilly + offset) % SILLY_LOOKS.length;
+    if (readyLooks.has(SILLY_LOOKS[index])) {
+      lookState.nextSilly = (index + 1) % SILLY_LOOKS.length;
+      holdExpression(SILLY_LOOKS[index]);
+      return;
+    }
+  }
+}
+
+// Mouse clicks and phone taps both arrive here: one click is a silly face, two quick
+// clicks are a pout. A click waits briefly first, so a double-click never flashes a silly face.
+function handleLookClick(event) {
+  if (!event.target.closest(".photo-frame")) return;
+
+  if (lookState.clickTimer) {
+    window.clearTimeout(lookState.clickTimer);
+    lookState.clickTimer = null;
+    holdExpression("pout");
+    return;
+  }
+
+  lookState.clickTimer = window.setTimeout(() => {
+    lookState.clickTimer = null;
+    showNextSillyLook();
+  }, DOUBLE_CLICK_WINDOW);
+}
+
 function handleScroll() {
   if (isScrollFrameQueued) return;
   isScrollFrameQueued = true;
@@ -1084,3 +1248,13 @@ function updateActiveSection() {
 render();
 window.addEventListener("scroll", handleScroll, { passive: true });
 window.addEventListener("resize", handleScroll);
+window.addEventListener("scroll", handleLookScroll, { passive: true });
+document.addEventListener("pointermove", handleLookPointerMove, { passive: true });
+document.documentElement.addEventListener("mouseleave", handleLookPointerLeave);
+document.addEventListener("click", handleLookClick);
+
+if (document.readyState === "complete") {
+  preloadLooks();
+} else {
+  window.addEventListener("load", preloadLooks);
+}

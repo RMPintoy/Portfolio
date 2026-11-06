@@ -148,7 +148,7 @@ window.PORTFOLIO_DATA = {
       type: "Weather Website",
       stack: ["JavaScript", "HTML", "CSS", "Weather API", "React","Vercel"],
       thumbnailCode: "wc",
-      thumbnailCount: 4,
+      thumbnailCount: 5,
       thumbnailExt: "PNG",
       blurb:
         "A playful weather web app that gives users a quick snapshot of current conditions through a simple, memorable experience centered around one question: is the sky blue today?",

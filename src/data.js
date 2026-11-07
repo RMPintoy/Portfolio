@@ -27,6 +27,7 @@ window.PORTFOLIO_DATA = {
       items: [
         { name: "React.js", icon: "react" },
         { name: "JavaScript", icon: "javascript" },
+        { name: "TypeScript", icon: "typescript" },
         { name: "HTML5", icon: "html5" },
         { name: "CSS3", icon: "css3" },
         { name: "Bootstrap", icon: "bootstrap" },
@@ -39,6 +40,7 @@ window.PORTFOLIO_DATA = {
       title: "Backend",
       items: [
         { name: "PHP", icon: "php" },
+        { name: "Laravel", icon: "laravel" },
         { name: "Node.js", icon: "nodejs" },
         { name: "REST API", icon: "rest" },
         { name: "Java", icon: "java" },

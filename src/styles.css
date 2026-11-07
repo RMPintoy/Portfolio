@@ -943,6 +943,196 @@ h3 {
   line-clamp: 3;
 }
 
+/* Project list + preview panel.
+   Closed: the list fills the width and the preview column is 0 wide.
+   Open: the list slides over to the left and the preview takes the right side. */
+
+#projects > .container {
+  transition: width 560ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+/* A smaller page margin while the preview is open gives it more room. */
+#projects.viewer-open > .container {
+  width: min(1520px, calc(100% - 40px));
+}
+
+.projects-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 0fr);
+  column-gap: 0;
+  align-items: start;
+  margin-top: 28px;
+  transition:
+    grid-template-columns 560ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    column-gap 560ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.viewer-open .projects-layout {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.25fr);
+  column-gap: 28px;
+}
+
+.projects-list {
+  min-width: 0;
+}
+
+.projects-list > .project-grid {
+  margin-top: 0;
+}
+
+@media (min-width: 901px) {
+  .viewer-open .project-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.project-viewer {
+  position: sticky;
+  top: 86px;
+  min-width: 0;
+  overflow: hidden;
+  border-radius: var(--radius-lg);
+  opacity: 0;
+  translate: 48px 0;
+  visibility: hidden;
+  transition:
+    opacity 360ms ease,
+    translate 560ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    visibility 0s linear 560ms;
+}
+
+.viewer-open .project-viewer {
+  opacity: 1;
+  translate: 0 0;
+  visibility: visible;
+  transition:
+    opacity 420ms ease 120ms,
+    translate 560ms cubic-bezier(0.22, 0.8, 0.24, 1),
+    visibility 0s;
+}
+
+/* Stacked inside the side panel: screenshot on top, details below.
+   The fixed minimum width keeps the text from squashing while the panel slides open. */
+.project-viewer .project-spotlight {
+  position: relative;
+  grid-template-columns: minmax(0, 1fr);
+  width: max(100%, 520px);
+  max-height: calc(100vh - 106px);
+  margin-top: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+
+.project-viewer .spotlight-visual {
+  min-height: 0;
+  aspect-ratio: 16 / 10;
+}
+
+.project-viewer .spotlight-content {
+  padding: 26px 30px 30px;
+}
+
+.viewer-close {
+  position: absolute;
+  top: 14px;
+  right: 14px;
+  z-index: 5;
+  display: grid;
+  place-items: center;
+  width: 42px;
+  height: 42px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: var(--surface);
+  color: var(--ink);
+  box-shadow: 0 8px 22px rgba(16, 38, 46, 0.28);
+  cursor: pointer;
+  transition: background 180ms ease, color 180ms ease, transform 180ms ease;
+}
+
+.viewer-close:hover {
+  background: var(--accent);
+  color: #fff;
+  transform: rotate(90deg);
+}
+
+.viewer-close svg {
+  width: 20px;
+  height: 20px;
+}
+
+/* "Show more" box and the rows that slide down after it. */
+
+.project-card.is-show-more {
+  position: relative;
+  overflow: hidden;
+}
+
+.show-more-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background: linear-gradient(180deg, rgba(247, 245, 240, 0.55), rgba(247, 245, 240, 0.94) 60%);
+  backdrop-filter: blur(2px);
+  transition: background 200ms ease;
+}
+
+.show-more-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 12px 22px;
+  border-radius: 999px;
+  background: var(--ink);
+  color: var(--on-dark);
+  font-weight: 600;
+  box-shadow: 0 10px 24px rgba(16, 38, 46, 0.22);
+  transition: background 200ms ease, transform 200ms ease;
+}
+
+.show-more-count {
+  color: var(--muted);
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.project-card.is-show-more:hover .show-more-pill,
+.project-card.is-show-more:focus-visible .show-more-pill {
+  background: var(--accent);
+  transform: translateY(2px);
+}
+
+.project-more {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 700ms cubic-bezier(0.22, 0.8, 0.24, 1);
+}
+
+.project-more.is-expanded {
+  grid-template-rows: 1fr;
+}
+
+.project-more-inner {
+  min-height: 0;
+  overflow: hidden;
+}
+
+/* Once open, stop clipping so card hover shadows aren't cut off. */
+.project-more.is-done .project-more-inner {
+  overflow: visible;
+}
+
+.project-more .project-grid {
+  margin-top: 0;
+  padding-top: 20px;
+}
+
 /* Contact */
 
 .contact-panel {
@@ -1162,6 +1352,63 @@ html.lightbox-open {
   }
 }
 
+/* Tablet and phone: the preview opens as a popup over the page. */
+
+@media (max-width: 900px) {
+  .viewer-open .projects-layout,
+  .projects-layout {
+    grid-template-columns: minmax(0, 1fr);
+    column-gap: 0;
+  }
+
+  #projects.viewer-open > .container {
+    width: min(1160px, calc(100% - 48px));
+  }
+
+  .project-viewer,
+  .viewer-open .project-viewer {
+    position: fixed;
+    inset: 0;
+    z-index: 50;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 16px;
+    border-radius: 0;
+    background: rgba(10, 25, 31, 0.72);
+    translate: none;
+  }
+
+  .project-viewer {
+    transition: opacity 240ms ease, visibility 0s linear 240ms;
+  }
+
+  .viewer-open .project-viewer {
+    transition: opacity 240ms ease, visibility 0s;
+  }
+
+  .project-viewer .project-spotlight {
+    width: min(100%, 620px);
+    max-height: calc(100dvh - 32px);
+    scale: 0.94;
+    transition: scale 280ms cubic-bezier(0.22, 0.8, 0.24, 1);
+  }
+
+  .viewer-open .project-viewer .project-spotlight {
+    scale: 1;
+  }
+
+  .viewer-close {
+    position: sticky;
+    top: 12px;
+    margin: 12px 12px -54px auto;
+  }
+
+  body.viewer-locked {
+    overflow: hidden;
+  }
+}
+
 /* Phone */
 
 @media (max-width: 700px) {
@@ -1300,6 +1547,12 @@ html.lightbox-open {
   }
 
   .lightbox-slide,
+  #projects > .container,
+  .projects-layout,
+  .project-viewer,
+  .viewer-open .project-viewer,
+  .project-viewer .project-spotlight,
+  .project-more,
   .spotlight-image,
   .project-thumb-image,
   .project-card,
@@ -1312,5 +1565,130 @@ html.lightbox-open {
   .project-card:hover,
   .btn:hover {
     transform: none;
+  }
+}
+
+/* Project preview: a slim scrollbar that doesn't crowd the panel. */
+.project-viewer .project-spotlight {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(16, 38, 46, 0.3) transparent;
+}
+
+.project-viewer .project-spotlight::-webkit-scrollbar {
+  width: 6px;
+}
+
+.project-viewer .project-spotlight::-webkit-scrollbar-thumb {
+  border-radius: 999px;
+  background: rgba(16, 38, 46, 0.3);
+}
+
+/* Image viewer zoom controls and hand tool. */
+.lightbox-zoom {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-right: 6px;
+}
+
+.lightbox-zoom-level {
+  min-width: 48px;
+  color: var(--on-dark);
+  font-size: 0.9rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+
+.lightbox-control:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.lightbox-control:disabled:hover {
+  background: rgba(244, 242, 236, 0.1);
+}
+
+.lightbox-stage {
+  touch-action: none;
+}
+
+.lightbox-slide img {
+  cursor: zoom-in;
+  transform-origin: center;
+  will-change: transform;
+}
+
+.lightbox.is-zoomed .lightbox-stage,
+.lightbox.is-zoomed .lightbox-slide img {
+  cursor: grab;
+}
+
+.lightbox.is-dragging .lightbox-stage,
+.lightbox.is-dragging .lightbox-slide img {
+  cursor: grabbing;
+}
+
+/* Arrows stay clickable on top of a zoomed image. */
+.lightbox-arrow {
+  z-index: 2;
+}
+
+@media (max-width: 700px) {
+  /* Name on one line on phones: the size follows the screen width. */
+  .hero h1 {
+    font-size: min(10.4vw, 3.4rem);
+    white-space: nowrap;
+  }
+
+  /* Title on one line with "…" so the zoom buttons fit beside it. */
+  .lightbox-bar {
+    min-width: 0;
+    gap: 10px;
+  }
+
+  .lightbox-bar .lightbox-control {
+    width: 38px;
+    height: 38px;
+  }
+
+  .lightbox-actions {
+    gap: 6px;
+  }
+
+  .lightbox-zoom {
+    margin-right: 2px;
+  }
+
+  .lightbox-caption {
+    flex: 1 1 0;
+    flex-direction: column;
+    flex-wrap: nowrap;
+    align-items: stretch;
+    gap: 0;
+  }
+
+  .lightbox-caption strong {
+    overflow: hidden;
+    font-size: 1rem;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
+
+  .lightbox-zoom-level {
+    min-width: 40px;
+    font-size: 0.82rem;
+  }
+
+  .lightbox-zoom .lightbox-control {
+    width: 38px;
+    height: 38px;
+  }
+}
+
+/* Very narrow phones: drop the zoom percentage so every button fits. */
+@media (max-width: 380px) {
+  .lightbox-zoom-level {
+    display: none;
   }
 }

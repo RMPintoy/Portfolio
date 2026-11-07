@@ -16,7 +16,19 @@ const state = {
   activeProject: projects[0],
   activeThumbnailIndex: 0,
   activeSection: "home",
+  viewerOpen: false,
+  showAllProjects: false,
 };
+
+// The list shows this many boxes; when there are more, the last box becomes "Show more".
+const PROJECT_PREVIEW_LIMIT = 9;
+// Below this width the preview opens as a popup instead of a side panel.
+const VIEWER_POPUP_QUERY = "(max-width: 900px)";
+
+// render() builds the page in its "before" state and these flags tell it to
+// switch to the "after" state one frame later, so the change can animate.
+let pendingViewerOpen = false;
+let pendingShowMore = false;
 
 let thumbnailInterval;
 let revealObserver;
@@ -36,6 +48,8 @@ const LIGHTBOX_ICONS = {
   close: lightboxIcon(`<path d="M6 6l12 12M18 6L6 18" />`),
   previous: lightboxIcon(`<path d="M15 5l-7 7 7 7" />`),
   next: lightboxIcon(`<path d="M9 5l7 7-7 7" />`),
+  zoomIn: lightboxIcon(`<circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.4-4.4M8.2 11h5.6M11 8.2v5.6" />`),
+  zoomOut: lightboxIcon(`<circle cx="11" cy="11" r="6.5" /><path d="M20 20l-4.4-4.4M8.2 11h5.6" />`),
   pause: lightboxIcon(`<path d="M9 5v14M15 5v14" />`),
   play: lightboxIcon(`<path d="M8 5l11 7-11 7z" />`),
   expand: lightboxIcon(`<path d="M9 4H4v5M15 4h5v5M9 20H4v-5M15 20h5v-5" />`),
@@ -83,6 +97,17 @@ const TOOL_ICONS = {
     <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
       <path d="M5 4.5h14v15H5z" fill="none"></path>
       <path d="M10.1 8.4v6.1c0 2-1.1 3.1-3 3.1-.9 0-1.7-.2-2.3-.8l1-1.6c.3.3.7.5 1.1.5.7 0 1.1-.3 1.1-1.4V8.4h2.1Zm3.1 7.1c.6.9 1.3 1.3 2.4 1.3.9 0 1.5-.4 1.5-1.1 0-.8-.6-1.1-1.7-1.6l-.6-.2c-1.8-.8-2.9-1.7-2.9-3.6 0-1.8 1.4-3.1 3.5-3.1 1.5 0 2.6.5 3.4 1.9l-1.7 1.1c-.4-.7-.8-.9-1.7-.9-.8 0-1.2.4-1.2 1 0 .7.4 1 1.5 1.4l.6.2c2.1.9 3.2 1.8 3.2 3.8 0 2.2-1.7 3.3-4 3.3-2.2 0-3.6-1-4.3-2.3l1.8-1.1Z"></path>
+    </svg>
+  `,
+  typescript: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <rect x="4.5" y="4.5" width="15" height="15" rx="2" fill="none"></rect>
+      <path d="M7.5 11h5M10 11v6M17.5 11.6c-.4-.5-1-.8-1.7-.8-.9 0-1.5.5-1.5 1.2 0 1.7 3.4 1 3.4 3.1 0 .8-.7 1.4-1.8 1.4-.8 0-1.5-.3-1.9-.9" fill="none"></path>
+    </svg>
+  `,
+  laravel: `
+    <svg viewBox="0 0 24 24" class="tag-icon-svg" aria-hidden="true" focusable="false">
+      <path d="M5 6.5v9l6 3.5 6-3.5M5 6.5 8 4.8l3 1.7v9M11 15.5l6-3.5V8.5l3-1.7v3.5L17 12M17 8.5l-3-1.7 3-1.7 3 1.7" fill="none"></path>
     </svg>
   `,
   html5: `
@@ -344,12 +369,146 @@ function scrollToElement(selector) {
   animateScrollTo(Math.max(nextTop, 0));
 }
 
+function renderProjectCard(project, cardIndex, activeProject) {
+  return `
+    <button
+      class="project-card${activeProject.title === project.title ? " active" : ""}"
+      data-project="${escapeHtml(project.title)}"
+      data-reveal="card:${escapeHtml(project.title)}"
+      style="--reveal-i: ${cardIndex % 3}"
+    >
+      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
+        ${renderThumbnailImage(project, "project-thumb-image", 1)}
+        <span>${escapeHtml(project.thumbnailLabel)}</span>
+      </div>
+      <div class="project-copy">
+        <span class="project-type">${escapeHtml(project.type)}</span>
+        <h3>${escapeHtml(project.title)}</h3>
+        <p>${escapeHtml(project.blurb)}</p>
+      </div>
+    </button>
+  `;
+}
+
+// The last visible box: the next project, dimmed, with a "Show more" label over it.
+function renderShowMoreCard(project, cardIndex, moreCount) {
+  return `
+    <button
+      class="project-card is-show-more"
+      data-show-more
+      data-reveal="card:${escapeHtml(project.title)}"
+      style="--reveal-i: ${cardIndex % 3}"
+      aria-label="Show ${moreCount} more projects"
+    >
+      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
+        ${renderThumbnailImage(project, "project-thumb-image", 1)}
+        <span>${escapeHtml(project.thumbnailLabel)}</span>
+      </div>
+      <div class="project-copy">
+        <span class="project-type">${escapeHtml(project.type)}</span>
+        <h3>${escapeHtml(project.title)}</h3>
+        <p>${escapeHtml(project.blurb)}</p>
+      </div>
+      <span class="show-more-overlay" aria-hidden="true">
+        <span class="show-more-pill">
+          Show more
+          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        </span>
+        <span class="show-more-count">+${moreCount} more projects</span>
+      </span>
+    </button>
+  `;
+}
+
+function renderProjectList(currentProjects, activeProject) {
+  const hasMore = currentProjects.length > PROJECT_PREVIEW_LIMIT;
+  const firstProjects = currentProjects.slice(0, PROJECT_PREVIEW_LIMIT);
+  const moreProjects = hasMore ? currentProjects.slice(PROJECT_PREVIEW_LIMIT) : [];
+  const collapsed = hasMore && !state.showAllProjects;
+  const expanded = hasMore && state.showAllProjects && !pendingShowMore;
+
+  const firstCards = firstProjects
+    .map((project, index) =>
+      collapsed && index === PROJECT_PREVIEW_LIMIT - 1
+        ? renderShowMoreCard(project, index, currentProjects.length - index)
+        : renderProjectCard(project, index, activeProject)
+    )
+    .join("");
+
+  return `
+    <div class="project-grid">${firstCards}</div>
+    ${
+      hasMore
+        ? `
+          <div class="project-more${expanded ? " is-expanded is-done" : ""}"${expanded ? "" : " inert"}>
+            <div class="project-more-inner">
+              <div class="project-grid">
+                ${moreProjects.map((project, index) => renderProjectCard(project, index, activeProject)).join("")}
+              </div>
+            </div>
+          </div>
+        `
+        : ""
+    }
+  `;
+}
+
+function isPopupViewer() {
+  return window.matchMedia(VIEWER_POPUP_QUERY).matches;
+}
+
+// Shows or hides the preview without rebuilding the page, so it can slide.
+function applyViewerOpen(open) {
+  const section = document.getElementById("projects");
+  const viewer = document.querySelector(".project-viewer");
+  if (!section || !viewer) return;
+
+  section.classList.toggle("viewer-open", open);
+  viewer.toggleAttribute("inert", !open);
+  viewer.setAttribute("aria-hidden", String(!open));
+  document.body.classList.toggle("viewer-locked", open && isPopupViewer());
+}
+
+function openViewer() {
+  if (state.viewerOpen) return;
+  state.viewerOpen = true;
+  applyViewerOpen(true);
+  const close = document.querySelector(".viewer-close");
+  if (close && isPopupViewer()) close.focus({ preventScroll: true });
+}
+
+function closeViewer() {
+  if (!state.viewerOpen) return;
+  state.viewerOpen = false;
+  applyViewerOpen(false);
+  const activeCard = document.querySelector(".project-card.active");
+  if (activeCard) activeCard.focus({ preventScroll: true });
+}
+
+function expandMoreProjects() {
+  const more = document.querySelector(".project-more");
+  if (!more) return;
+  more.removeAttribute("inert");
+  // Read the size first so the browser animates from the collapsed height.
+  void more.offsetHeight;
+  more.classList.add("is-expanded");
+
+  const finish = () => more.classList.add("is-done");
+  if (prefersReducedMotion()) {
+    finish();
+  } else {
+    more.addEventListener("transitionend", finish, { once: true });
+    window.setTimeout(finish, 900);
+  }
+}
+
 function render() {
   ensureActiveProject();
 
   const root = document.getElementById("root");
   const currentProjects = filteredProjects();
   const activeProject = state.activeProject;
+  const viewerShown = state.viewerOpen && !pendingViewerOpen;
   state.activeThumbnailIndex = Math.min(state.activeThumbnailIndex, getThumbnailCount(activeProject) - 1);
 
   root.innerHTML = `
@@ -543,7 +702,7 @@ function render() {
           </div>
         </section>
 
-        <section id="projects" class="section">
+        <section id="projects" class="section${viewerShown ? " viewer-open" : ""}">
           <div class="container">
             <div class="section-heading split" data-reveal="projects-heading" style="--reveal-i: 0">
               <div>
@@ -568,7 +727,14 @@ function render() {
                 .join("")}
             </div>
 
-            <div class="panel project-spotlight" data-reveal="projects-spotlight" style="--reveal-i: 2">
+            <div class="projects-layout">
+              <div class="projects-list">
+                ${renderProjectList(currentProjects, activeProject)}
+              </div>
+
+              <aside class="project-viewer" aria-label="Project preview"${viewerShown ? "" : " inert aria-hidden=\"true\""}>
+                <div class="panel project-spotlight">
+                  <button type="button" class="viewer-close" aria-label="Close project preview">${LIGHTBOX_ICONS.close}</button>
               <div class="spotlight-visual ${escapeHtml(activeProject.accent)}${hasThumbnail(activeProject) ? " has-thumbnail" : ""}">
                 ${renderSpotlightImages(activeProject)}
                 <div class="spotlight-title">${escapeHtml(activeProject.thumbnailLabel)}</div>
@@ -625,31 +791,8 @@ function render() {
                     : ""
                 }
               </div>
-            </div>
-
-            <div class="project-grid">
-              ${currentProjects
-                .map(
-                  (project, cardIndex) => `
-                    <button
-                      class="project-card${activeProject.title === project.title ? " active" : ""}"
-                      data-project="${escapeHtml(project.title)}"
-                      data-reveal="card:${escapeHtml(project.title)}"
-                      style="--reveal-i: ${cardIndex % 3}"
-                    >
-                      <div class="project-thumb ${escapeHtml(project.accent)}${hasThumbnail(project) ? " has-thumbnail" : ""}">
-                        ${renderThumbnailImage(project, "project-thumb-image", 1)}
-                        <span>${escapeHtml(project.thumbnailLabel)}</span>
-                      </div>
-                      <div class="project-copy">
-                        <span class="project-type">${escapeHtml(project.type)}</span>
-                        <h3>${escapeHtml(project.title)}</h3>
-                        <p>${escapeHtml(project.blurb)}</p>
-                      </div>
-                    </button>
-                  `
-                )
-                .join("")}
+                </div>
+              </aside>
             </div>
           </div>
         </section>
@@ -678,6 +821,18 @@ function render() {
   updateActiveSection();
   updateScrollEffects();
   setupThumbnailSlideshow();
+
+  if (pendingViewerOpen) {
+    pendingViewerOpen = false;
+    state.viewerOpen = false;
+    void document.querySelector(".projects-layout").offsetWidth;
+    openViewer();
+  }
+
+  if (pendingShowMore) {
+    pendingShowMore = false;
+    expandMoreProjects();
+  }
 }
 
 function bindEvents() {
@@ -691,6 +846,7 @@ function bindEvents() {
     button.addEventListener("click", () => {
       state.activeFilter = button.dataset.filter;
       state.activeThumbnailIndex = 0;
+      state.showAllProjects = false;
       ensureActiveProject();
       forgetRevealedCards();
       render();
@@ -702,13 +858,40 @@ function bindEvents() {
     button.addEventListener("click", () => {
       const project = projects.find((item) => item.title === button.dataset.project);
       if (!project) return;
+      const wasOpen = state.viewerOpen;
       state.activeProject = project;
       state.activeThumbnailIndex = 0;
+      if (!wasOpen) {
+        // Build the page with the preview still hidden, then slide it in.
+        state.viewerOpen = true;
+        pendingViewerOpen = true;
+      }
       render();
-      animateSpotlightChange();
-      scrollToElement(".project-spotlight");
+      if (wasOpen) animateSpotlightChange();
     });
   });
+
+  const showMore = document.querySelector("[data-show-more]");
+  if (showMore) {
+    showMore.addEventListener("click", () => {
+      state.showAllProjects = true;
+      pendingShowMore = true;
+      render();
+      const firstNew = document.querySelector(".project-more .project-card");
+      if (firstNew) firstNew.focus({ preventScroll: true });
+    });
+  }
+
+  const viewerClose = document.querySelector(".viewer-close");
+  if (viewerClose) viewerClose.addEventListener("click", closeViewer);
+
+  // In the phone popup, tapping the dark area around the preview closes it.
+  const viewer = document.querySelector(".project-viewer");
+  if (viewer) {
+    viewer.addEventListener("click", (event) => {
+      if (event.target === viewer && isPopupViewer()) closeViewer();
+    });
+  }
 
   const spotlightOpen = document.querySelector(".spotlight-open");
   if (spotlightOpen) {
@@ -735,6 +918,11 @@ function openLightbox(project, startIndex) {
         ${hasMultiple ? `<span class="lightbox-counter"></span>` : ""}
       </div>
       <div class="lightbox-actions">
+        <div class="lightbox-zoom" role="group" aria-label="Zoom">
+          <button type="button" class="lightbox-control lightbox-zoom-out" aria-label="Zoom out">${LIGHTBOX_ICONS.zoomOut}</button>
+          <span class="lightbox-zoom-level" aria-live="polite">100%</span>
+          <button type="button" class="lightbox-control lightbox-zoom-in" aria-label="Zoom in">${LIGHTBOX_ICONS.zoomIn}</button>
+        </div>
         ${
           hasMultiple
             ? `<button type="button" class="lightbox-control lightbox-toggle"></button>`
@@ -797,6 +985,87 @@ function openLightbox(project, startIndex) {
   let swipeStartX = null;
   let didSwipe = false;
 
+  // Zoom: the current image is scaled and moved with a CSS transform.
+  const MAX_ZOOM = 4;
+  const zoomInButton = dialog.querySelector(".lightbox-zoom-in");
+  const zoomOutButton = dialog.querySelector(".lightbox-zoom-out");
+  const zoomLevel = dialog.querySelector(".lightbox-zoom-level");
+  let zoom = 1;
+  let panX = 0;
+  let panY = 0;
+  let dragStart = null;
+  let pinchStart = null;
+  const pointers = new Map();
+
+  const clamp = (value, min, max) => Math.min(Math.max(value, min), max);
+  const currentImage = () => slides[index].querySelector("img");
+
+  // Keep the zoomed image covering the stage: no dragging it out of view.
+  function clampPan() {
+    const image = currentImage();
+    const box = stage.getBoundingClientRect();
+    const maxX = Math.max(0, (image.offsetWidth * zoom - box.width) / 2);
+    const maxY = Math.max(0, (image.offsetHeight * zoom - box.height) / 2);
+    panX = clamp(panX, -maxX, maxX);
+    panY = clamp(panY, -maxY, maxY);
+  }
+
+  function applyZoom(animate) {
+    const image = currentImage();
+    clampPan();
+    image.style.transition = animate && !reduceMotion ? "transform 220ms ease" : "none";
+    image.style.transform = zoom > 1 ? `translate(${panX}px, ${panY}px) scale(${zoom})` : "";
+    dialog.classList.toggle("is-zoomed", zoom > 1);
+    zoomLevel.textContent = `${Math.round(zoom * 100)}%`;
+    syncZoomButtons();
+  }
+
+  // A button that becomes disabled drops keyboard focus out of the viewer, so
+  // hand focus to the other zoom button (one of the two is always usable).
+  function syncZoomButtons() {
+    const focused = document.activeElement;
+    zoomOutButton.disabled = zoom <= 1;
+    zoomInButton.disabled = zoom >= MAX_ZOOM;
+    if (focused === zoomOutButton && zoomOutButton.disabled) zoomInButton.focus();
+    if (focused === zoomInButton && zoomInButton.disabled) zoomOutButton.focus();
+  }
+
+  // Zooms toward a point on screen (the cursor or pinch centre), or the middle.
+  function setZoom(nextZoom, clientX, clientY, animate = true) {
+    nextZoom = clamp(nextZoom, 1, MAX_ZOOM);
+    const ratio = nextZoom / zoom;
+    const box = stage.getBoundingClientRect();
+    const pointX = clientX === undefined ? 0 : clientX - (box.left + box.width / 2);
+    const pointY = clientY === undefined ? 0 : clientY - (box.top + box.height / 2);
+    panX = pointX - (pointX - panX) * ratio;
+    panY = pointY - (pointY - panY) * ratio;
+    zoom = nextZoom;
+    if (zoom === 1) {
+      panX = 0;
+      panY = 0;
+    }
+
+    // Stop the slideshow so it doesn't move on while looking closely.
+    if (zoom > 1 && isPlaying) {
+      isPlaying = false;
+      syncToggle();
+      startTimer();
+    }
+    applyZoom(animate);
+  }
+
+  function resetZoom() {
+    zoom = 1;
+    panX = 0;
+    panY = 0;
+    slides.forEach((slide) => {
+      slide.querySelector("img").style.transform = "";
+    });
+    dialog.classList.remove("is-zoomed", "is-dragging");
+    zoomLevel.textContent = "100%";
+    syncZoomButtons();
+  }
+
   function syncIndicators() {
     slides.forEach((slide, slideIndex) => {
       slide.setAttribute("aria-hidden", String(slideIndex !== index));
@@ -818,6 +1087,7 @@ function openLightbox(project, startIndex) {
   // to the first slides one step instead of rewinding through the whole set.
   function slideTo(nextIndex, direction) {
     if (nextIndex === index) return;
+    resetZoom();
 
     const incoming = slides[nextIndex];
     incoming.style.transition = "none";
@@ -875,28 +1145,104 @@ function openLightbox(project, startIndex) {
       });
     });
 
-    stage.addEventListener("pointerdown", (event) => {
-      didSwipe = false;
-      swipeStartX = event.target.closest("button") ? null : event.clientX;
-    });
-
-    stage.addEventListener("pointerup", (event) => {
-      if (swipeStartX === null) return;
-      const distance = event.clientX - swipeStartX;
-      swipeStartX = null;
-      if (Math.abs(distance) < 50) return;
-      didSwipe = true;
-      step(distance < 0 ? 1 : -1);
-    });
-
-    stage.addEventListener("pointercancel", () => {
-      swipeStartX = null;
-    });
   }
+
+  zoomInButton.addEventListener("click", () => setZoom(zoom * 1.5));
+  zoomOutButton.addEventListener("click", () => setZoom(zoom / 1.5));
+
+  // Mouse wheel / trackpad zooms toward the cursor.
+  stage.addEventListener(
+    "wheel",
+    (event) => {
+      event.preventDefault();
+      setZoom(zoom * Math.exp(-event.deltaY * 0.0022), event.clientX, event.clientY, false);
+    },
+    { passive: false }
+  );
+
+  // Double-click the picture to zoom in on that spot, again to zoom back out.
+  stage.addEventListener("dblclick", (event) => {
+    if (!event.target.matches(".lightbox-slide img")) return;
+    setZoom(zoom > 1 ? 1 : 2.5, event.clientX, event.clientY);
+  });
+
+  // One pointer: drag the zoomed image like a hand tool, or swipe between images.
+  // Two fingers: pinch to zoom.
+  stage.addEventListener("pointerdown", (event) => {
+    if (event.target.closest("button")) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+    didSwipe = false;
+
+    if (pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      pinchStart = { distance: Math.hypot(a.x - b.x, a.y - b.y), zoom };
+      dragStart = null;
+      swipeStartX = null;
+      return;
+    }
+
+    if (zoom > 1) {
+      event.preventDefault();
+      dragStart = { x: event.clientX, y: event.clientY, panX, panY };
+      stage.setPointerCapture(event.pointerId);
+      dialog.classList.add("is-dragging");
+    } else {
+      swipeStartX = hasMultiple ? event.clientX : null;
+    }
+  });
+
+  stage.addEventListener("pointermove", (event) => {
+    if (!pointers.has(event.pointerId)) return;
+    pointers.set(event.pointerId, { x: event.clientX, y: event.clientY });
+
+    if (pinchStart && pointers.size === 2) {
+      const [a, b] = [...pointers.values()];
+      const distance = Math.hypot(a.x - b.x, a.y - b.y);
+      didSwipe = true;
+      setZoom(pinchStart.zoom * (distance / pinchStart.distance), (a.x + b.x) / 2, (a.y + b.y) / 2, false);
+      return;
+    }
+
+    if (dragStart) {
+      const moveX = event.clientX - dragStart.x;
+      const moveY = event.clientY - dragStart.y;
+      if (Math.hypot(moveX, moveY) > 3) didSwipe = true;
+      panX = dragStart.panX + moveX;
+      panY = dragStart.panY + moveY;
+      applyZoom(false);
+    }
+  });
+
+  function endPointer(event) {
+    pointers.delete(event.pointerId);
+    if (pointers.size < 2) pinchStart = null;
+
+    if (dragStart) {
+      dragStart = null;
+      dialog.classList.remove("is-dragging");
+      return;
+    }
+
+    if (swipeStartX === null || event.type !== "pointerup") {
+      swipeStartX = null;
+      return;
+    }
+    const distance = event.clientX - swipeStartX;
+    swipeStartX = null;
+    if (Math.abs(distance) < 50) return;
+    didSwipe = true;
+    step(distance < 0 ? 1 : -1);
+  }
+
+  stage.addEventListener("pointerup", endPointer);
+  stage.addEventListener("pointercancel", endPointer);
 
   dialog.addEventListener("keydown", (event) => {
     if (event.key === "ArrowLeft") step(-1);
     if (event.key === "ArrowRight") step(1);
+    if (event.key === "+" || event.key === "=") setZoom(zoom * 1.5);
+    if (event.key === "-") setZoom(zoom / 1.5);
+    if (event.key === "0") setZoom(1);
   });
 
   // Clicking the empty area around the image closes the viewer.
@@ -938,6 +1284,7 @@ function openLightbox(project, startIndex) {
   dialog.showModal();
   syncIndicators();
   syncToggle();
+  resetZoom();
   startTimer();
 }
 
@@ -1248,6 +1595,15 @@ function updateActiveSection() {
 render();
 window.addEventListener("scroll", handleScroll, { passive: true });
 window.addEventListener("resize", handleScroll);
+window.addEventListener("resize", () => {
+  // Only the phone popup locks page scrolling; update it if the window changes size.
+  document.body.classList.toggle("viewer-locked", state.viewerOpen && isPopupViewer());
+});
+document.addEventListener("keydown", (event) => {
+  if (event.key !== "Escape" || !state.viewerOpen) return;
+  if (document.querySelector(".lightbox[open]")) return;
+  closeViewer();
+});
 window.addEventListener("scroll", handleLookScroll, { passive: true });
 document.addEventListener("pointermove", handleLookPointerMove, { passive: true });
 document.documentElement.addEventListener("mouseleave", handleLookPointerLeave);

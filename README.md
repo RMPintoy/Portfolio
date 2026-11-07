@@ -14,7 +14,7 @@ powershell -ExecutionPolicy Bypass -File .\start-local.ps1
 
 Then open `http://127.0.0.1:4173/`.
 
-Your resume is included at [assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf](/C:/Users/Admin/Desktop/Rica_proj/Portfolio/assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf).
+Your resume is included at [assets/Rica_Mae_Pintoy_Resume_Developer_2026.pdf](assets/Rica_Mae_Pintoy_Resume_Developer_2026.pdf).
 
 ## Run with Docker
 

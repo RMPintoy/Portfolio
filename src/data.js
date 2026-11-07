@@ -8,11 +8,11 @@ window.PORTFOLIO_DATA = {
     linkedin: "https://www.linkedin.com/in/rica-mae-pintoy",
     github: "https://github.com/RMPintoy",
     summary:
-      "Results-driven Web Developer with 2+ years of experience building and optimizing full-stack web applications using React, JavaScript, PHP, and SQL. Passionate about user-friendly interfaces, scalable systems, cloud technologies, and AI-assisted workflows.",
+      "Results-driven Web Developer with 2+ years of working experience building and optimizing full-stack web and app applications. Passionate about user-friendly interfaces, scalable systems, cloud technologies, and AI-assisted workflows.",
     highlights: [
       "2+ years building responsive full-stack applications",
       "Contributed to enterprise platforms used across multiple companies",
-      "Cum Laude Computer Science graduate",
+      "Cum Laude in Bachelor of Science in Computer Science graduate",
     ],
   },
   stats: [
@@ -71,13 +71,23 @@ window.PORTFOLIO_DATA = {
     {
       company: "Trackerteer Web Developer Corporation",
       role: "Web Developer",
-      period: "June 2024 - Present",
+      period: "June 2024 - October 2026",
       location: "Clark, Pampanga",
       points: [
         "Engineered responsive mobile-first interfaces with React, JavaScript, HTML, and CSS across multiple internal enterprise modules.",
         "Built and optimized PHP and SQL backend services for production data workflows, improving reliability and reducing errors.",
         "Integrated REST APIs for real-time synchronization across leave management and RFID operations.",
         "Collaborated with cross-functional teams to ship features on schedule and resolve critical system issues quickly.",
+      ],
+    },
+    {
+      company: "Self-employed",
+      role: "Freelance Software Developer",
+      period: "June 2026 - Present",
+      location: "",
+      points: [
+        "Consult directly with business clients to gather requirements and turn their ideas into working web systems.",
+        "Serve as each client's single point of contact for issues, updates, and post-launch support.",
       ],
     },
     {

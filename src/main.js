@@ -389,7 +389,7 @@ function render() {
                   <a class="btn btn-primary" href="#projects" data-section-link="projects">View My Work</a>
                   <a
                     class="btn btn-secondary"
-                    href="./assets/Rica_Mae_Pintoy_Resume_Web_Dev.pdf"
+                    href="./assets/Rica_Mae_Pintoy_Resume_Developer_2026.pdf"
                     target="_blank"
                     rel="noreferrer"
                   >
@@ -501,7 +501,7 @@ function render() {
                             <h3>${escapeHtml(job.role)}</h3>
                             <span>${escapeHtml(job.period)}</span>
                           </div>
-                          <p class="timeline-company">${escapeHtml(job.company)} • ${escapeHtml(job.location)}</p>
+                          <p class="timeline-company">${[job.company, job.location].filter(Boolean).map(escapeHtml).join(" • ")}</p>
                           <ul class="detail-list">
                             ${job.points.map((point) => `<li>${escapeHtml(point)}</li>`).join("")}
                           </ul>
